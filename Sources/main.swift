@@ -132,12 +132,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         quitWithSound()
     }
 
-    /// 先播老式电视机关机音，响完再退出
+    /// 播放点击音，响完再退出
     private func quitWithSound() {
         guard !isQuitting else { return }
         isQuitting = true
-        SoundFX.shared.tvOff()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.78) {
+        SoundFX.shared.click()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             NSApp.terminate(nil)
         }
     }
@@ -250,9 +250,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         if let prefix = env["POMODORO_DUMP_SFX"] {
-            try? SoundFX.tickWAV().write(to: URL(fileURLWithPath: prefix + "-tick.wav"))
-            try? SoundFX.tvOffWAV().write(to: URL(fileURLWithPath: prefix + "-tvoff.wav"))
-            NSLog("POMODORO_DUMP_SFX wrote %@-tick.wav / -tvoff.wav", prefix)
+            try? SoundFX.fallbackTickWAV().write(to: URL(fileURLWithPath: prefix + "-tick.wav"))
+            NSLog("POMODORO_DUMP_SFX wrote %@-tick.wav", prefix)
         }
 
         if env["POMODORO_DEBUG_CHIMEWAIT"] != nil {

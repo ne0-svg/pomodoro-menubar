@@ -53,8 +53,8 @@ struct PopoverView: View {
 
             footer
                 .padding(.horizontal, 18)
-                .padding(.top, 10)
-                .padding(.bottom, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
         }
         .frame(width: 300)
         .onAppear { focusedField = nil }
@@ -139,13 +139,10 @@ struct PopoverView: View {
         }
     }
 
-    /// 开始 / 暂停：开始计时时播放钟表「啪嗒」声
+    /// 开始 / 暂停 / 继续（每次点击都有单音反馈）
     private func startOrPause() {
-        let wasRunning = engine.isRunning
+        SoundFX.shared.click()
         engine.primaryAction()
-        if !wasRunning && engine.isRunning {
-            SoundFX.shared.tick()
-        }
     }
 
     // MARK: - 主操作
@@ -166,6 +163,7 @@ struct PopoverView: View {
     private var secondaryButtons: some View {
         HStack(spacing: 10) {
             Button {
+                SoundFX.shared.click()
                 engine.reset()
             } label: {
                 Label("重置", systemImage: "arrow.counterclockwise")
@@ -178,6 +176,7 @@ struct PopoverView: View {
             .clipShape(Capsule())
 
             Button {
+                SoundFX.shared.click()
                 engine.skip()
             } label: {
                 Label("跳过", systemImage: "forward.end")
@@ -270,14 +269,17 @@ struct PopoverView: View {
     // MARK: - 底部
 
     private var footer: some View {
-        Button(action: onQuit) {
-            Label("退出", systemImage: "power")
-                .font(.system(size: 13, weight: .medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 2)
+        HStack {
+            Spacer(minLength: 0)
+            Button(action: onQuit) {
+                Label("退出", systemImage: "power")
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .clipShape(Capsule())
         }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
-        .clipShape(Capsule())
     }
 }
