@@ -9,22 +9,27 @@
 
 ## 下载安装（只想用的话）
 
-从 [Releases](https://github.com/ne0-svg/pomodoro-menubar/releases/latest) 下载
-`Pomodoro-v1.2.0-universal.zip` —— 通用二进制，Apple Silicon 和 Intel 都能跑。
-
-```bash
-shasum -a 256 Pomodoro-v1.2.0-universal.zip
-# b397fda46582c69cd61184eafe7427c0e99c81696f1057fe4cc0c904383de53c
-```
-
-1. 解压后把 `Pomodoro.app` 拖进「应用程序」
-2. 首次打开会被 Gatekeeper 拦下（没有 Apple 公证，不是有病毒），任选一种放行：
+1. 打开 [Releases · latest](https://github.com/ne0-svg/pomodoro-menubar/releases/latest)
+2. 在页面底部的 **Assets** 里点下载：
+   - **`Pomodoro-v1.2.0-universal.dmg`**（推荐）：双击打开后，把 `Pomodoro.app` 拖进旁边的 `Applications` 文件夹
+   - 或 `Pomodoro-v1.2.0-universal.zip`：解压后把 `Pomodoro.app` 拖进「应用程序」
+3. 首次打开会被 Gatekeeper 拦下（没有 Apple 公证，不是有病毒），任选一种放行：
    - 右键点 App → **打开** → 再点「打开」
    - 或 系统设置 → 隐私与安全性 → 底部「**仍要打开**」
    - 或终端 `xattr -dr com.apple.quarantine /Applications/Pomodoro.app`
-3. 打开后不会出现在 Dock，只在屏幕右上角菜单栏
+4. 打开后不会出现在 Dock，只在屏幕右上角菜单栏（`Pomodoro` 图标 + 倒计时）
 
 > 想开机自启：系统设置 → 通用 → 登录项 → 「登录时打开」选择 Pomodoro.app。
+
+校验下载文件（可选）：
+
+```bash
+shasum -a 256 Pomodoro-v1.2.0-universal.dmg
+# 9da9bef08eb41ae9680b7c06a29841da3cec732f2465aeb063e1e8ebb902dc1a
+
+shasum -a 256 Pomodoro-v1.2.0-universal.zip
+# b397fda46582c69cd61184eafe7427c0e99c81696f1057fe4cc0c904383de53c
+```
 
 ## 从源码构建
 
