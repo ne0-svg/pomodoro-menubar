@@ -155,10 +155,18 @@ struct PopoverView: View {
             }
 
             VStack(spacing: 2) {
-                Text(engine.timeText)
-                    .font(.system(size: 44, weight: .light, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(tint)
+                HStack(alignment: .firstTextBaseline, spacing: 1) {
+                    Text(engine.timeText)
+                        .font(.system(size: 36, weight: .light, design: .rounded))
+                        .monospacedDigit()
+                        .fixedSize()
+                    Text(".\(engine.fractionText)")
+                        .font(.system(size: 15, weight: .light, design: .rounded))
+                        .monospacedDigit()
+                        .opacity(0.55)
+                        .fixedSize()
+                }
+                .foregroundStyle(tint)
 
                 Text(hover.isHovering ? engine.ringHint : engine.stateCaption)
                     .font(.system(size: 11, weight: .medium))

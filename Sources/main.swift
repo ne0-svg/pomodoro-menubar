@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: Self.statusItemLength)
 
         if let button = statusItem.button {
+            button.imagePosition = .imageLeading
             button.target = self
             button.action = #selector(statusItemClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -39,16 +40,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// 计时 / 休息之间切换 emoji 时，item 都不变宽，锚定其上的 popover 也就不会左右跳。
     private static var statusItemLength: CGFloat {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
-        let samples = ["⌛️ 888:88", "☕️ 888:88"]
-        let widest = samples
-            .map { ceil(NSAttributedString(string: $0, attributes: [.font: font]).size().width) }
-            .max() ?? 72
-        return widest + 20
-    }
-
-    /// 计时用 ⌛️，休息用 ☕️
-    private static func emoji(for phase: PomodoroPhase) -> String {
-        phase == .rest ? "☕️" : "⌛️"
+        let textWidth = ceil(NSAttributedString(string: "888:88", attributes: [.font: font]).size().width)
+        let emojiWidth = ceil(NSAttributedString(string: "☕️ ", attributes: [.font: font]).size().width)
+        let timerIconWidth = ceil(StatusIcon.timer.size.width)
+        // 计时态：图标 + 时间；休息态：咖啡 emoji + 时间
+        let runningWidth = timerIconWidth + textWidth
+        let restWidth = emojiWidth + textWidth
+        return max(runningWidth, restWidth) + 20
     }
 
     // MARK: - 状态栏
@@ -56,11 +54,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func updateStatusItem() {
         guard let button = statusItem?.button else { return }
 
-        let title = "\(Self.emoji(for: engine.phase)) \(PomodoroEngine.format(engine.remaining))"
+        let isRest = engine.phase == .rest
+        let timeText = PomodoroEngine.format(engine.remaining)
+        let title = isRest ? "☕️ \(timeText)" : timeText
         if title != lastTitle {
             lastTitle = title
             let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
             button.attributedTitle = NSAttributedString(string: title, attributes: [.font: font])
+            button.image = isRest ? nil : StatusIcon.timer
         }
         button.toolTip = "番茄钟 · \(engine.stateCaption)"
     }

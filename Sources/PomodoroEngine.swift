@@ -123,6 +123,13 @@ final class PomodoroEngine: ObservableObject {
 
     var timeText: String { Self.format(remaining) }
 
+    /// 百分秒（两位），面板里跟在秒后面显示，状态栏不用
+    var fractionText: String {
+        let total = max(0, remaining)
+        let hundredths = Int((total * 100).rounded(.down)) % 100
+        return String(format: "%02d", hundredths)
+    }
+
     var stateCaption: String {
         if isChiming { return "提醒中" }
         switch phase {
@@ -260,7 +267,7 @@ final class PomodoroEngine: ObservableObject {
 
     private func startTicker() {
         ticker?.invalidate()
-        let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 0.02, repeats: true) { [weak self] _ in
             self?.tick()
         }
         RunLoop.main.add(t, forMode: .common)
