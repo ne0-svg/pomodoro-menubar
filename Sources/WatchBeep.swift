@@ -11,6 +11,8 @@ final class WatchBeep {
     static let interPairGap: TimeInterval = 0.65
     static let toneDuration: TimeInterval = 0.055
     static let fallbackPairs = 10
+    /// 提醒音量基准（点击音按它的 60% 播放）
+    static let alertVolume: Float = 1.0
 
     private var player: AVAudioPlayer?
     private var debugLogging = false
@@ -53,7 +55,7 @@ final class WatchBeep {
         if let url = Bundle.main.url(forResource: "pomo-chime", withExtension: "mp3") {
             do {
                 let custom = try AVAudioPlayer(contentsOf: url)
-                custom.volume = 1.0
+                custom.volume = Self.alertVolume
                 custom.prepareToPlay()
                 player = custom
                 return
@@ -65,7 +67,7 @@ final class WatchBeep {
         // 2) 合成兜底
         do {
             let fallback = try AVAudioPlayer(data: Self.fallbackWAV())
-            fallback.volume = 1.0
+            fallback.volume = Self.alertVolume
             fallback.prepareToPlay()
             player = fallback
         } catch {

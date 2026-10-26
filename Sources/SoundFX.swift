@@ -7,6 +7,9 @@ final class SoundFX {
 
     static let shared = SoundFX()
 
+    /// 点击音 = 提醒音量的 60%
+    static let volumeRatio: Float = 0.6
+
     private var player: AVAudioPlayer?
     private var debugLogging = false
 
@@ -25,7 +28,7 @@ final class SoundFX {
             return
         }
         if debugLogging {
-            NSLog("POMODORO_SFX click")
+            NSLog("POMODORO_SFX click volume=%.2f (alert=%.2f)", player.volume, WatchBeep.alertVolume)
         }
         player.stop()
         player.currentTime = 0
@@ -39,7 +42,7 @@ final class SoundFX {
         if let url = Bundle.main.url(forResource: "click", withExtension: "wav") {
             do {
                 let custom = try AVAudioPlayer(contentsOf: url)
-                custom.volume = 0.8
+                custom.volume = Self.volumeRatio * WatchBeep.alertVolume
                 custom.prepareToPlay()
                 player = custom
                 return
@@ -51,7 +54,7 @@ final class SoundFX {
         // 2) 兜底：合成的短促「啪嗒」
         do {
             let fallback = try AVAudioPlayer(data: Self.fallbackTickWAV())
-            fallback.volume = 0.5
+            fallback.volume = Self.volumeRatio * WatchBeep.alertVolume
             fallback.prepareToPlay()
             player = fallback
         } catch {
