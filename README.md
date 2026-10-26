@@ -1,7 +1,7 @@
-# ⌛️ 番茄钟 · macOS 菜单栏计时器
+# Pamodoro · macOS 菜单栏计时器
 
-> 一个原生 macOS 菜单栏番茄钟：菜单栏常驻 **⌛️ / ☕️ + 倒计时**，点开是贴合 macOS 设计语言的浮层面板。
-> 纯 Swift（AppKit + SwiftUI），零第三方依赖，**不需要 Xcode 本体**，命令行 `swiftc` 直接编译出一个 `.app`。
+> 一个原生 macOS 菜单栏计时器：菜单栏常驻 **8-bit 像素图标 + 倒计时**，点开是贴合 macOS 设计语言的浮层面板。
+> 纯 Swift（AppKit + SwiftUI），零第三方依赖，**不需要 Xcode 本体**，命令行 `swiftc` 直接编译出一个通用二进制 `.app`。
 
 ![菜单栏三态](Preview/menubar.png)
 
