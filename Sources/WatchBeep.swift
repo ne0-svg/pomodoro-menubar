@@ -11,6 +11,13 @@ final class WatchBeep {
     static let intraPairGap: TimeInterval = 0.28
     /// 组与组之间的停顿
     static let interPairGap: TimeInterval = 0.65
+    /// 单声时长
+    static let toneDuration: TimeInterval = 0.055
+
+    /// 整段提示音总时长（用于「提示音结束后再开始下一阶段」）
+    static func duration(pairs: Int) -> TimeInterval {
+        Double(max(1, pairs)) * (toneDuration * 2 + intraPairGap + interPairGap)
+    }
 
     private var player: AVAudioPlayer?
     private var loadedPairs = 0
@@ -79,9 +86,8 @@ final class WatchBeep {
     /// 方波 4000Hz，接近满刻度振幅：响度与系统提示音一致（跟随系统输出音量），
     /// 55ms，起音极快，靠高频而非加音染提升穿透力
     private static func toneSamples(sampleRate: Int) -> [Int16] {
-        let duration = 0.055
         let frequency = 4000.0
-        let sampleCount = Int(Double(sampleRate) * duration)
+        let sampleCount = Int(Double(sampleRate) * toneDuration)
         let fadeIn = 22.0      // 0.5ms，起音更锐
         let fadeOut = 350.0    // 8ms
 

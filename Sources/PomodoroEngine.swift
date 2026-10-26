@@ -15,6 +15,8 @@ final class PomodoroEngine: ObservableObject {
     @Published private(set) var remaining: TimeInterval = 25 * 60
     @Published private(set) var isRunning = false
     @Published private(set) var completedToday = 0
+    /// 提示音播放中：此时不开始下一阶段、也不计时
+    @Published private(set) var isChiming = false
 
     @Published var workMinutes: Int = 25 {
         didSet {
@@ -41,7 +43,6 @@ final class PomodoroEngine: ObservableObject {
     @Published var autoLoop: Bool = true {
         didSet {
             guard !isLoading else { return }
-            if debugLogging { NSLog("POMODORO_SET autoLoop=%d", autoLoop ? 1 : 0) }
             persist()
             notifyUpdate()
         }
@@ -70,6 +71,10 @@ final class PomodoroEngine: ObservableObject {
     private var endDate: Date?
     private var ticker: Timer?
     private var midnightTimer: Timer?
+    private var pendingWork: DispatchWorkItem?
+    private var pendingAction: (() -> Void)?
+    /// 提示音组数（每组两声）
+    private static let beepPairs = 10
     private var todayKey = ""
     private var isLoading = true
     private let debugLogging = ProcessInfo.processInfo.environment["POMODORO_DEBUG"] != nil
@@ -121,6 +126,7 @@ final class PomodoroEngine: ObservableObject {
     var timeText: String { Self.format(remaining) }
 
     var stateCaption: String {
+        if isChiming { return "提醒中" }
         switch phase {
         case .idle: return "准备开始"
         case .work: return isRunning ? "计时中" : "已暂停"
@@ -130,12 +136,14 @@ final class PomodoroEngine: ObservableObject {
 
     /// 鼠标悬停在表盘上时显示的点击提示
     var ringHint: String {
+        if isChiming { return "点击跳过提醒" }
         if isRunning { return "点击暂停" }
         if phase == .idle { return "点击开始" }
         return "点击继续"
     }
 
     var primaryTitle: String {
+        if isChiming { return "跳过提醒，立即开始" }
         if isRunning { return "暂停" }
         switch phase {
         case .idle: return "开始计时"
@@ -157,6 +165,11 @@ final class PomodoroEngine: ObservableObject {
     // MARK: - 操作
 
     func primaryAction() {
+        if isChiming {
+            WatchBeep.shared.stop()
+            runPendingAction()
+            return
+        }
         stopChime()
         if isRunning {
             pause()
@@ -279,30 +292,33 @@ final class PomodoroEngine: ObservableObject {
         case .work:
             completedToday += 1
             saveCount()
-            chime(pairs: 10)
+            chime(pairs: Self.beepPairs)
             postNotification(
                 title: "计时完成",
                 body: "今日已完成 \(completedToday) 次计时，休息 \(restMinutes) 分钟"
             )
-            // 一轮里的休息总是自动开始
+            // 提示音期间先不开始；听到提示音就说明该休息了，响完再走
             phase = .rest
             remaining = TimeInterval(restMinutes * 60)
-            begin()
+            scheduleAfterChime { [weak self] in self?.begin() }
 
         case .rest:
-            chime(pairs: 10)
+            chime(pairs: Self.beepPairs)
             if autoLoop {
-                // 自动循环：休息结束直接进入下一轮
+                // 自动循环：提示音响完后进入下一轮
                 postNotification(title: "休息结束", body: "开始下一轮 \(workMinutes) 分钟计时")
                 phase = .work
                 remaining = TimeInterval(workMinutes * 60)
-                begin()
+                scheduleAfterChime { [weak self] in self?.begin() }
             } else {
-                // 关闭自动循环：一轮结束就停
+                // 关闭自动循环：提示音响完回到待机
                 postNotification(title: "休息结束", body: "本轮已完成，已自动停止")
-                phase = .idle
-                remaining = TimeInterval(workMinutes * 60)
-                notifyUpdate()
+                scheduleAfterChime { [weak self] in
+                    guard let self = self else { return }
+                    self.phase = .idle
+                    self.remaining = TimeInterval(self.workMinutes * 60)
+                    self.notifyUpdate()
+                }
             }
 
         case .idle:
@@ -321,6 +337,35 @@ final class PomodoroEngine: ObservableObject {
 
     func stopChime() {
         WatchBeep.shared.stop()
+        pendingWork?.cancel()
+        pendingWork = nil
+        pendingAction = nil
+        if isChiming {
+            isChiming = false
+            notifyUpdate()
+        }
+    }
+
+    /// 提示音结束后再执行的动作（开始下一阶段 / 收工）
+    private func scheduleAfterChime(_ action: @escaping () -> Void) {
+        pendingWork?.cancel()
+        pendingAction = action
+        isChiming = true
+        let item = DispatchWorkItem { [weak self] in self?.runPendingAction() }
+        pendingWork = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + WatchBeep.duration(pairs: Self.beepPairs) + 0.05,
+                                      execute: item)
+        notifyUpdate()
+    }
+
+    private func runPendingAction() {
+        pendingWork?.cancel()
+        pendingWork = nil
+        let action = pendingAction
+        pendingAction = nil
+        isChiming = false
+        notifyUpdate()
+        action?()
     }
 
     private func postNotification(title: String, body: String) {

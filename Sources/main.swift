@@ -227,6 +227,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
 
+
+        if env["POMODORO_DEBUG_CHIMEWAIT"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.engine.debugBeginWork(elapsed: TimeInterval(self?.engine.workMinutes ?? 25) * 60 - 1)
+            }
+            for (i, t) in [2.5, 6.0, 9.5, 13.0].enumerated() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + t) { [weak self] in
+                    guard let self = self else { return }
+                    NSLog("POMODORO_WAIT #%d phase=%@ running=%d chiming=%d remaining=%.1f",
+                          i + 1, self.engine.phaseName,
+                          self.engine.isRunning ? 1 : 0,
+                          self.engine.isChiming ? 1 : 0,
+                          self.engine.remaining)
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 14.5) { NSApp.terminate(nil) }
+        }
+
         if env["POMODORO_DEBUG_CLICK"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
                 guard let self = self else { return }
@@ -274,10 +292,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 guard let self = self else { return }
                 self.engine.debugBeginWork(elapsed: TimeInterval(self.engine.workMinutes * 60) - 1)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 17.0) { [weak self] in
                 self?.engine.debugFinish()
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 11.0) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 28.5) { [weak self] in
                 guard let self = self else { return }
                 NSLog("POMODORO_LOOP autoLoop=%d phase=%@ running=%d",
                       self.engine.autoLoop ? 1 : 0, self.engine.phaseName, self.engine.isRunning ? 1 : 0)
@@ -311,8 +329,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                           self.engine.stateCaption,
                           self.engine.autoLoop ? 1 : 0,
                           UserDefaults.standard.bool(forKey: "autoStartNext") ? 1 : 0)
-                    NSLog("POMODORO_BUNDLE id=%@ suite=%@", Bundle.main.bundleIdentifier ?? "nil",
-                          UserDefaults.standard.dictionaryRepresentation().keys.sorted().joined(separator: ","))
                 }
             }
         }
