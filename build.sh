@@ -26,6 +26,7 @@ lipo -create -output "$APP/Contents/MacOS/Pomodoro" \
 
 cp Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+cp Resources/pomo-chime.mp3 "$APP/Contents/Resources/pomo-chime.mp3"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 codesign --force --sign - "$APP" 2>/dev/null || true
 

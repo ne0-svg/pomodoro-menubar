@@ -73,8 +73,6 @@ final class PomodoroEngine: ObservableObject {
     private var midnightTimer: Timer?
     private var pendingWork: DispatchWorkItem?
     private var pendingAction: (() -> Void)?
-    /// 提示音组数（每组两声）
-    private static let beepPairs = 10
     private var todayKey = ""
     private var isLoading = true
     private let debugLogging = ProcessInfo.processInfo.environment["POMODORO_DEBUG"] != nil
@@ -292,7 +290,7 @@ final class PomodoroEngine: ObservableObject {
         case .work:
             completedToday += 1
             saveCount()
-            chime(pairs: Self.beepPairs)
+            chime()
             postNotification(
                 title: "计时完成",
                 body: "今日已完成 \(completedToday) 次计时，休息 \(restMinutes) 分钟"
@@ -303,7 +301,7 @@ final class PomodoroEngine: ObservableObject {
             scheduleAfterChime { [weak self] in self?.begin() }
 
         case .rest:
-            chime(pairs: Self.beepPairs)
+            chime()
             if autoLoop {
                 // 自动循环：提示音响完后进入下一轮
                 postNotification(title: "休息结束", body: "开始下一轮 \(workMinutes) 分钟计时")
@@ -328,11 +326,10 @@ final class PomodoroEngine: ObservableObject {
 
     // MARK: - 提示
 
-    /// 「滴滴。。」节奏：每组两声，组间停顿。
-    /// 10 组 = 20 声，整段合成后一次性播放，节奏不受主线程调度影响。
-    private func chime(pairs: Int) {
+    /// 播放提示音：优先用内置 pomo-chime.mp3，缺失时退回合成的电子表蜂鸣
+    private func chime() {
         stopChime()
-        WatchBeep.shared.play(pairs: pairs)
+        WatchBeep.shared.play()
     }
 
     func stopChime() {
@@ -353,7 +350,7 @@ final class PomodoroEngine: ObservableObject {
         isChiming = true
         let item = DispatchWorkItem { [weak self] in self?.runPendingAction() }
         pendingWork = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + WatchBeep.duration(pairs: Self.beepPairs) + 0.05,
+        DispatchQueue.main.asyncAfter(deadline: .now() + WatchBeep.shared.duration + 0.05,
                                       execute: item)
         notifyUpdate()
     }

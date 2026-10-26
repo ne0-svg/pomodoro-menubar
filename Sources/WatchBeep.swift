@@ -1,42 +1,40 @@
 import AppKit
 import AVFoundation
 
-/// 老式电子手表蜂鸣：把「滴滴。。」整段节奏合成成一个音频一次播放，
-/// 避免主线程调度抖动导致节奏不齐。
+/// 提示音：优先播放内置的 `pomo-chime.mp3`；找不到音频时退回合成的电子表蜂鸣。
 final class WatchBeep {
 
     static let shared = WatchBeep()
 
-    /// 每组两声之间的间隔（像呼吸的换气，不催）
+    // 合成兜底音参数
     static let intraPairGap: TimeInterval = 0.28
-    /// 组与组之间的停顿
     static let interPairGap: TimeInterval = 0.65
-    /// 单声时长
     static let toneDuration: TimeInterval = 0.055
-
-    /// 整段提示音总时长（用于「提示音结束后再开始下一阶段」）
-    static func duration(pairs: Int) -> TimeInterval {
-        Double(max(1, pairs)) * (toneDuration * 2 + intraPairGap + interPairGap)
-    }
+    static let fallbackPairs = 10
 
     private var player: AVAudioPlayer?
-    private var loadedPairs = 0
     private var debugLogging = false
 
-    private init() {}
+    private init() {
+        load()
+    }
 
     func setDebugLogging(_ enabled: Bool) {
         debugLogging = enabled
     }
 
-    func play(pairs: Int) {
-        ensurePlayer(pairs: pairs)
+    /// 整段提示音时长，用于「响完再开始下一阶段」
+    var duration: TimeInterval {
+        player?.duration ?? Self.fallbackDuration
+    }
+
+    func play() {
         guard let player = player else {
             NSSound.beep()
             return
         }
         if debugLogging {
-            NSLog("POMODORO_CHIME pattern pairs=%d", pairs)
+            NSLog("POMODORO_CHIME duration=%.2f", player.duration)
         }
         player.stop()
         player.currentTime = 0
@@ -48,32 +46,50 @@ final class WatchBeep {
         player?.currentTime = 0
     }
 
-    private func ensurePlayer(pairs: Int) {
-        guard player == nil || loadedPairs != pairs else { return }
+    // MARK: - 加载
+
+    private func load() {
+        // 1) 内置音频文件
+        if let url = Bundle.main.url(forResource: "pomo-chime", withExtension: "mp3") {
+            do {
+                let custom = try AVAudioPlayer(contentsOf: url)
+                custom.volume = 1.0
+                custom.prepareToPlay()
+                player = custom
+                return
+            } catch {
+                NSLog("POMODORO_CHIME 内置音频加载失败: %@", error.localizedDescription)
+            }
+        }
+
+        // 2) 合成兜底
         do {
-            let generated = try AVAudioPlayer(data: Self.wav(pairs: pairs))
-            generated.volume = 1.0
-            generated.prepareToPlay()
-            player = generated
-            loadedPairs = pairs
+            let fallback = try AVAudioPlayer(data: Self.fallbackWAV())
+            fallback.volume = 1.0
+            fallback.prepareToPlay()
+            player = fallback
         } catch {
-            NSLog("POMODORO_WATCHBEEP init failed: %@", error.localizedDescription)
-            player = nil
+            NSLog("POMODORO_CHIME 兜底音频初始化失败: %@", error.localizedDescription)
         }
     }
 
-    // MARK: - 合成
+    // MARK: - 合成兜底音
 
-    static func wav(pairs: Int) -> Data {
+    static var fallbackDuration: TimeInterval {
+        Double(fallbackPairs) * (toneDuration * 2 + intraPairGap + interPairGap)
+    }
+
+    /// 老式电子表蜂鸣：「滴滴。。」节奏，10 组共 20 声
+    static func fallbackWAV() -> Data {
         let sampleRate = 44100
         let tone = toneSamples(sampleRate: sampleRate)
         let intra = silenceSamples(seconds: intraPairGap, sampleRate: sampleRate)
         let inter = silenceSamples(seconds: interPairGap, sampleRate: sampleRate)
 
         var pcm: [Int16] = []
-        pcm.reserveCapacity(max(1, pairs) * (tone.count * 2 + intra.count + inter.count))
+        pcm.reserveCapacity(fallbackPairs * (tone.count * 2 + intra.count + inter.count))
 
-        for _ in 0..<max(1, pairs) {
+        for _ in 0..<fallbackPairs {
             pcm.append(contentsOf: tone)
             pcm.append(contentsOf: intra)
             pcm.append(contentsOf: tone)
@@ -83,13 +99,12 @@ final class WatchBeep {
         return wavData(pcm: pcm, sampleRate: sampleRate)
     }
 
-    /// 方波 4000Hz，接近满刻度振幅：响度与系统提示音一致（跟随系统输出音量），
-    /// 55ms，起音极快，靠高频而非加音染提升穿透力
+    /// 方波 4000Hz，55ms，带淡入淡出避免爆音
     private static func toneSamples(sampleRate: Int) -> [Int16] {
         let frequency = 4000.0
         let sampleCount = Int(Double(sampleRate) * toneDuration)
-        let fadeIn = 22.0      // 0.5ms，起音更锐
-        let fadeOut = 350.0    // 8ms
+        let fadeIn = 22.0
+        let fadeOut = 350.0
 
         var samples = [Int16]()
         samples.reserveCapacity(sampleCount)

@@ -197,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
 
         if let path = env["POMODORO_DUMP_BEEP"] {
-            try? WatchBeep.wav(pairs: 10).write(to: URL(fileURLWithPath: path))
+            try? WatchBeep.fallbackWAV().write(to: URL(fileURLWithPath: path))
             NSLog("POMODORO_DUMP_BEEP wrote %@", path)
         }
 
