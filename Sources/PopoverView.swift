@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct PopoverView: View {
@@ -11,6 +12,12 @@ struct PopoverView: View {
     }
 
     @FocusState private var focusedField: Field?
+    /// 表盘 hover 状态（用 ObservableObject 而不是 @State：swiftc 直接编译时 SwiftUI 宏插件不可用）
+    private final class HoverState: ObservableObject {
+        @Published var isHovering = false
+    }
+
+    @ObservedObject private var hover = HoverState()
 
     private var tint: Color {
         engine.phase == .rest ? .green : .accentColor
@@ -73,12 +80,28 @@ struct PopoverView: View {
         }
     }
 
-    // MARK: - 环形计时
+    // MARK: - 环形计时（点击表盘 = 开始 / 暂停 / 继续）
 
     private var ring: some View {
+        Button(action: engine.primaryAction) {
+            ringBody
+        }
+        .buttonStyle(RingPressStyle())
+        .help("点击表盘：开始 / 暂停 / 继续")
+        .onHover { hovering in
+            hover.isHovering = hovering
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+    }
+
+    private var ringBody: some View {
         ZStack {
             Circle()
-                .stroke(Color.primary.opacity(0.08), lineWidth: 10)
+                .stroke(Color.primary.opacity(hover.isHovering ? 0.12 : 0.08), lineWidth: 10)
 
             if engine.progress > 0.002 {
                 Circle()
@@ -95,12 +118,25 @@ struct PopoverView: View {
                     .monospacedDigit()
                     .foregroundStyle(.primary)
 
-                Text(engine.stateCaption)
+                Text(hover.isHovering ? engine.ringHint : engine.stateCaption)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
             }
         }
         .frame(width: 170, height: 170)
+        .contentShape(Circle())
+        .scaleEffect(hover.isHovering ? 1.012 : 1)
+        .animation(.easeOut(duration: 0.15), value: hover.isHovering)
+    }
+
+    /// 按下时轻微缩一下，给点击反馈
+    private struct RingPressStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.985 : 1)
+                .opacity(configuration.isPressed ? 0.92 : 1)
+                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+        }
     }
 
     // MARK: - 主操作

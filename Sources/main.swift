@@ -226,6 +226,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             }
         }
 
+
+        if env["POMODORO_DEBUG_CLICK"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self = self else { return }
+                self.showPopover()
+
+                func clickRing(_ index: Int) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8 + Double(index) * 0.8) {
+                        guard let window = self.popover.contentViewController?.view.window,
+                              let content = window.contentView else { return }
+                        let point = NSPoint(x: content.bounds.midX, y: content.bounds.maxY - 125)
+                        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                            if let event = NSEvent.mouseEvent(
+                                with: type, location: point, modifierFlags: [],
+                                timestamp: ProcessInfo.processInfo.systemUptime,
+                                windowNumber: window.windowNumber, context: nil,
+                                eventNumber: 0, clickCount: 1, pressure: 1
+                            ) { window.sendEvent(event) }
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            NSLog("POMODORO_CLICK #%d phase=%@ running=%d remaining=%.0f",
+                                  index + 1, self.engine.phaseName,
+                                  self.engine.isRunning ? 1 : 0, self.engine.remaining)
+                        }
+                    }
+                }
+
+                for i in 0..<3 { clickRing(i) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.6) { NSApp.terminate(nil) }
+            }
+        }
+
         if env["POMODORO_DEBUG_CHIME"] != nil {
             engine.autoLoop = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in

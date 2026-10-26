@@ -128,6 +128,13 @@ final class PomodoroEngine: ObservableObject {
         }
     }
 
+    /// 鼠标悬停在表盘上时显示的点击提示
+    var ringHint: String {
+        if isRunning { return "点击暂停" }
+        if phase == .idle { return "点击开始" }
+        return "点击继续"
+    }
+
     var primaryTitle: String {
         if isRunning { return "暂停" }
         switch phase {
