@@ -7,13 +7,10 @@ final class SoundFX {
 
     static let shared = SoundFX()
 
-    /// 点击音 = 提醒音量的 45%
-    static let volumeRatio: Float = 0.45
-    /// 退出音更克制：只有 30%
-    static let quitVolumeRatio: Float = 0.30
+    /// 点击音 = 提醒音量的 30%（短促克制）
+    static let volumeRatio: Float = 0.30
 
     private var player: AVAudioPlayer?
-    private var quitPlayer: AVAudioPlayer?
     private var debugLogging = false
 
     private init() {
@@ -24,24 +21,19 @@ final class SoundFX {
         debugLogging = enabled
     }
 
-    /// 整段退出音时长（两声）
+    /// 提示音时长（退出时等它响完）
     var quitDuration: TimeInterval {
-        quitPlayer?.duration ?? 0.85
+        player?.duration ?? 0.11
     }
 
-    /// 单次点击音
+    /// 单次点击音：所有按钮共用
     func click() {
         play(player, name: "click")
     }
 
-    /// 退出：两声，间隔缩短
+    /// 退出也复用同一个短音
     func quitChime() {
-        guard quitPlayer != nil else {
-            // 没有两声素材时退化成单声
-            play(player, name: "click")
-            return
-        }
-        play(quitPlayer, name: "quit")
+        play(player, name: "click")
     }
 
     private func play(_ player: AVAudioPlayer?, name: String) {
@@ -72,15 +64,7 @@ final class SoundFX {
             }
         }
 
-        // 2) 退出用的两声（间隔已缩短）
-        if let url = Bundle.main.url(forResource: "quit", withExtension: "wav"),
-           let quit = try? AVAudioPlayer(contentsOf: url) {
-            quit.volume = Self.quitVolumeRatio * WatchBeep.alertVolume
-            quit.prepareToPlay()
-            quitPlayer = quit
-        }
-
-        // 3) 兜底：合成的短促「啪嗒」
+        // 2) 兜底：合成的短促「啪嗒」
         if player == nil {
             do {
                 let fallback = try AVAudioPlayer(data: Self.fallbackTickWAV())
