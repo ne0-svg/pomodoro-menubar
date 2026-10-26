@@ -156,10 +156,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if env["POMODORO_SNAPSHOT_REST"] != nil {
                 engine.debugRestState()
             } else if env["POMODORO_SNAPSHOT_PAUSED"] != nil {
-                engine.debugBeginWork(elapsed: 9 * 60 + 12)
+                engine.debugBeginWork(elapsed: TimeInterval(engine.workMinutes * 60) * 0.35)
                 engine.pause()
             } else if env["POMODORO_SNAPSHOT_RUNNING"] != nil {
-                engine.debugBeginWork(elapsed: 9 * 60 + 12)
+                engine.debugBeginWork(elapsed: TimeInterval(engine.workMinutes * 60) * 0.35)
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
                 guard let self = self else { return }

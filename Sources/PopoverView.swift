@@ -12,6 +12,7 @@ struct PopoverView: View {
     }
 
     @FocusState private var focusedField: Field?
+    @Environment(\.colorScheme) private var colorScheme
     /// 表盘 hover 状态（用 ObservableObject 而不是 @State：swiftc 直接编译时 SwiftUI 宏插件不可用）
     private final class HoverState: ObservableObject {
         @Published var isHovering = false
@@ -19,9 +20,8 @@ struct PopoverView: View {
 
     @ObservedObject private var hover = HoverState()
 
-    private var tint: Color {
-        engine.phase == .rest ? .green : .accentColor
-    }
+    /// 所有状态统一用强调色（蓝）
+    private var tint: Color { .accentColor }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,9 +63,9 @@ struct PopoverView: View {
     // MARK: - 头部
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text("番茄钟")
-                .font(.system(size: 13, weight: .semibold))
+        HStack(alignment: .center, spacing: 7) {
+            titleText
+            statusLight
 
             Spacer(minLength: 8)
 
@@ -78,6 +78,45 @@ struct PopoverView: View {
             }
             .foregroundStyle(.secondary)
         }
+    }
+
+    /// 刻字效果的标题：深色字面 + 下缘高光 + 上缘暗影
+    private var titleText: some View {
+        Text("Pamodoro")
+            .font(.system(size: 13, weight: .semibold))
+            .kerning(1.1)
+            .foregroundStyle(
+                LinearGradient(
+                    colors: colorScheme == .dark
+                        ? [Color(white: 0.70), Color(white: 0.90)]
+                        : [Color(white: 0.30), Color(white: 0.48)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .shadow(color: colorScheme == .dark
+                    ? Color.black.opacity(0.85)
+                    : Color.white.opacity(0.95),
+                    radius: 0.6, x: 0, y: 0.9)
+            .shadow(color: colorScheme == .dark
+                    ? Color.white.opacity(0.14)
+                    : Color.black.opacity(0.22),
+                    radius: 0.5, x: 0, y: -0.8)
+    }
+
+    /// 运行状态灯：计时中绿、暂停/待机红
+    private var statusLight: some View {
+        let color: Color = engine.isRunning ? Color(red: 0.18, green: 0.72, blue: 0.36)
+                                            : Color(red: 0.94, green: 0.26, blue: 0.24)
+        return ZStack {
+            Circle()
+                .fill(color.opacity(0.22))
+                .frame(width: 13, height: 13)
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+        }
+        .animation(.easeInOut(duration: 0.25), value: engine.isRunning)
     }
 
     // MARK: - 环形计时（点击表盘 = 开始 / 暂停 / 继续）
@@ -100,20 +139,16 @@ struct PopoverView: View {
 
     private var ringBody: some View {
         ZStack {
-            // 底色：计时中为强调色实心，其余为浅色底
             Circle()
-                .fill(engine.isRunning ? tint : Color(nsColor: .textBackgroundColor))
+                .fill(Color(nsColor: .textBackgroundColor))
 
             Circle()
-                .stroke(engine.isRunning
-                        ? Color.white.opacity(hover.isHovering ? 0.30 : 0.22)
-                        : Color.primary.opacity(hover.isHovering ? 0.12 : 0.08),
-                        lineWidth: 10)
+                .stroke(Color.primary.opacity(hover.isHovering ? 0.14 : 0.09), lineWidth: 10)
 
             if engine.progress > 0.002 {
                 Circle()
                     .trim(from: 0, to: engine.progress)
-                    .stroke(engine.isRunning ? Color.white.opacity(0.9) : tint,
+                    .stroke(tint,
                             style: StrokeStyle(lineWidth: 10, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.25), value: engine.progress)
@@ -123,17 +158,16 @@ struct PopoverView: View {
                 Text(engine.timeText)
                     .font(.system(size: 44, weight: .light, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(engine.isRunning ? Color.white : tint)
+                    .foregroundStyle(tint)
 
                 Text(hover.isHovering ? engine.ringHint : engine.stateCaption)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(engine.isRunning ? Color.white.opacity(0.78) : Color.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(width: 170, height: 170)
         .contentShape(Circle())
         .scaleEffect(hover.isHovering ? 1.012 : 1)
-        .animation(.easeOut(duration: 0.2), value: engine.isRunning)
         .animation(.easeOut(duration: 0.15), value: hover.isHovering)
     }
 
@@ -162,28 +196,26 @@ struct PopoverView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
         }
-        .buttonStyle(FillButtonStyle(filled: engine.isRunning, tint: tint))
+        .buttonStyle(FillButtonStyle(tint: tint))
     }
 
-    /// 计时中：实心底 + 白字；暂停 / 待机：浅色底 + 彩色字
+    /// 浅色底 + 彩色字 + 细描边；保留按压缩放反馈
     private struct FillButtonStyle: ButtonStyle {
-        let filled: Bool
         let tint: Color
 
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
-                .foregroundStyle(filled ? Color.white : tint)
+                .foregroundStyle(tint)
                 .background(
-                    Capsule().fill(filled ? tint : Color(nsColor: .textBackgroundColor))
+                    Capsule().fill(Color(nsColor: .textBackgroundColor))
                 )
                 .overlay(
-                    Capsule().strokeBorder(filled ? Color.clear : tint.opacity(0.35), lineWidth: 1)
+                    Capsule().strokeBorder(tint.opacity(0.35), lineWidth: 1)
                 )
                 .contentShape(Capsule())
-                .opacity(configuration.isPressed ? 0.85 : 1)
-                .scaleEffect(configuration.isPressed ? 0.99 : 1)
+                .opacity(configuration.isPressed ? 0.82 : 1)
+                .scaleEffect(configuration.isPressed ? 0.985 : 1)
                 .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-                .animation(.easeOut(duration: 0.2), value: filled)
         }
     }
 

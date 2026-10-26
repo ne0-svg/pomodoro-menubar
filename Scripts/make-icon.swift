@@ -1,5 +1,6 @@
 #!/usr/bin/env swift
-// 生成 App 图标（沙漏）：暖色圆角底 + 白色沙漏 + 奶油色沙粒
+// 生成 App 图标：Braun / Sony 工业设计语言的计时器
+// 炭黑磨砂底 + 米白表盘 + 细刻度 + 橙色秒针
 // 用法：swift Scripts/make-icon.swift
 
 import AppKit
@@ -14,6 +15,14 @@ try! FileManager.default.createDirectory(at: iconsetURL, withIntermediateDirecto
 try! FileManager.default.createDirectory(at: projectRoot.appendingPathComponent("Resources"),
                                          withIntermediateDirectories: true)
 
+// MARK: - 配色（克制、哑光）
+
+let charcoal = NSColor(srgbRed: 0.149, green: 0.153, blue: 0.161, alpha: 1)      // 机身
+let charcoalDark = NSColor(srgbRed: 0.098, green: 0.102, blue: 0.110, alpha: 1)
+let cream = NSColor(srgbRed: 0.949, green: 0.933, blue: 0.894, alpha: 1)         // 表盘
+let ink = NSColor(srgbRed: 0.110, green: 0.114, blue: 0.122, alpha: 1)           // 刻度/指针
+let braunOrange = NSColor(srgbRed: 1.000, green: 0.396, blue: 0.055, alpha: 1)    // 秒针
+
 /// 在 1024×1024 设计空间里绘制，按目标尺寸缩放
 func drawIcon(size: CGFloat) -> NSImage {
     let image = NSImage(size: NSSize(width: size, height: size))
@@ -23,95 +32,89 @@ func drawIcon(size: CGFloat) -> NSImage {
     ctx.interpolationQuality = .high
     ctx.scaleBy(x: size / 1024.0, y: size / 1024.0)
 
-    // MARK: 圆角底
+    // MARK: 圆角底（哑光炭黑，几乎无高光，Rams 的克制）
     let inset: CGFloat = 100
     let rect = NSRect(x: inset, y: inset, width: 1024 - inset * 2, height: 1024 - inset * 2)
-    let radius: CGFloat = 185
-    let background = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+    let squircle = NSBezierPath(roundedRect: rect, xRadius: 185, yRadius: 185)
+    NSGradient(colors: [charcoal, charcoalDark])!.draw(in: squircle, angle: -90)
 
-    let gradient = NSGradient(colors: [
-        NSColor(srgbRed: 1.00, green: 0.76, blue: 0.36, alpha: 1),   // 顶部暖黄
-        NSColor(srgbRed: 0.94, green: 0.42, blue: 0.24, alpha: 1),   // 底部橘红
-    ])!
-    gradient.draw(in: background, angle: -90)
+    // MARK: 几何参数
+    let center = NSPoint(x: 512, y: 480)
+    let radius: CGFloat = 282
 
-    // 顶部柔光
-    NSGraphicsContext.saveGraphicsState()
-    background.addClip()
-    let highlight = NSGradient(colors: [
-        NSColor(white: 1, alpha: 0.20),
-        NSColor(white: 1, alpha: 0.0),
-    ])!
-    highlight.draw(in: NSRect(x: inset, y: 512, width: 1024 - inset * 2, height: 1024 - inset * 2 - 412),
-                   angle: -90)
-    NSGraphicsContext.restoreGraphicsState()
+    // 顶部表冠（计时按钮）：先画，表盘盖住下半部分
+    let crownRect = NSRect(x: center.x - 46, y: center.y + radius - 26,
+                           width: 92, height: 104)
+    let crown = NSBezierPath(roundedRect: crownRect, xRadius: 24, yRadius: 24)
+    cream.setFill()
+    crown.fill()
+    ink.setStroke()
+    crown.lineWidth = 9
+    crown.stroke()
 
-    // MARK: 沙漏
-    let cx: CGFloat = 512
-    let topCapY: CGFloat = 742
-    let bottomCapY: CGFloat = 282
-    let capHeight: CGFloat = 42
-    let capWidth: CGFloat = 316
-    let glassTop: CGFloat = topCapY
-    let glassBottom: CGFloat = bottomCapY + capHeight
-    let glassHalf: CGFloat = 150
-    let neckY: CGFloat = 512
+    // MARK: 表盘
+    let faceRect = NSRect(x: center.x - radius, y: center.y - radius,
+                          width: radius * 2, height: radius * 2)
+    let face = NSBezierPath(ovalIn: faceRect)
 
-    // 投影
     NSGraphicsContext.saveGraphicsState()
     let shadow = NSShadow()
-    shadow.shadowColor = NSColor(srgbRed: 0.55, green: 0.18, blue: 0.05, alpha: 0.35)
-    shadow.shadowBlurRadius = 36
-    shadow.shadowOffset = NSSize(width: 0, height: -14)
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.35)
+    shadow.shadowBlurRadius = 40
+    shadow.shadowOffset = NSSize(width: 0, height: -12)
     shadow.set()
-
-    let glass = NSBezierPath()
-    glass.move(to: NSPoint(x: cx - glassHalf, y: glassTop))
-    glass.line(to: NSPoint(x: cx + glassHalf, y: glassTop))
-    glass.line(to: NSPoint(x: cx, y: neckY))
-    glass.close()
-    glass.move(to: NSPoint(x: cx - glassHalf, y: glassBottom))
-    glass.line(to: NSPoint(x: cx + glassHalf, y: glassBottom))
-    glass.line(to: NSPoint(x: cx, y: neckY))
-    glass.close()
-    NSColor.white.setFill()
-    glass.fill()
-
-    let caps = NSBezierPath()
-    caps.appendRoundedRect(NSRect(x: cx - capWidth / 2, y: topCapY, width: capWidth, height: capHeight),
-                           xRadius: 14, yRadius: 14)
-    caps.appendRoundedRect(NSRect(x: cx - capWidth / 2, y: bottomCapY, width: capWidth, height: capHeight),
-                           xRadius: 14, yRadius: 14)
-    caps.fill()
+    cream.setFill()
+    face.fill()
     NSGraphicsContext.restoreGraphicsState()
 
-    // MARK: 沙粒（奶油色）
-    NSColor(srgbRed: 0.99, green: 0.72, blue: 0.34, alpha: 1).setFill()
+    ink.setStroke()
+    face.lineWidth = 9
+    face.stroke()
 
-    // 沙粒与玻璃之间留出白边，读感才是「玻璃里的沙」
-    let margin: CGFloat = 26
-    func halfLower(_ y: CGFloat) -> CGFloat { glassHalf * (neckY - y) / (neckY - glassBottom) }
-    func halfUpper(_ y: CGFloat) -> CGFloat { glassHalf * (y - neckY) / (glassTop - neckY) }
+    // MARK: 刻度（12 格，3/6/9/12 加长）
+    for i in 0..<12 {
+        let angle = Double(i) * Double.pi / 6 + Double.pi / 2
+        let major = i % 3 == 0
+        let inner = radius - (major ? 74 : 52)
+        let outer = radius - 24
 
-    let lowerBottomY = glassBottom + 12
-    let lowerTopY = glassBottom + 104
-    let lowerSand = NSBezierPath()
-    lowerSand.move(to: NSPoint(x: cx - (glassHalf - margin), y: lowerBottomY))
-    lowerSand.line(to: NSPoint(x: cx + (glassHalf - margin), y: lowerBottomY))
-    lowerSand.line(to: NSPoint(x: cx + max(12, halfLower(lowerTopY) - margin), y: lowerTopY))
-    lowerSand.line(to: NSPoint(x: cx - max(12, halfLower(lowerTopY) - margin), y: lowerTopY))
-    lowerSand.close()
-    lowerSand.fill()
+        let tick = NSBezierPath()
+        tick.move(to: NSPoint(x: center.x + cos(angle) * inner,
+                              y: center.y + sin(angle) * inner))
+        tick.line(to: NSPoint(x: center.x + cos(angle) * outer,
+                              y: center.y + sin(angle) * outer))
+        tick.lineWidth = major ? 13 : 7
+        ink.setStroke()
+        tick.stroke()
+    }
 
-    let upperTopY = glassTop - 12
-    let upperBottomY = glassTop - 96
-    let upperSand = NSBezierPath()
-    upperSand.move(to: NSPoint(x: cx - (glassHalf - margin), y: upperTopY))
-    upperSand.line(to: NSPoint(x: cx + (glassHalf - margin), y: upperTopY))
-    upperSand.line(to: NSPoint(x: cx + max(12, halfUpper(upperBottomY) - margin), y: upperBottomY))
-    upperSand.line(to: NSPoint(x: cx - max(12, halfUpper(upperBottomY) - margin), y: upperBottomY))
-    upperSand.close()
-    upperSand.fill()
+    // MARK: 指针
+    func hand(angle: Double, from: CGFloat, to: CGFloat, width: CGFloat, color: NSColor) {
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: center.x + cos(angle) * from,
+                              y: center.y + sin(angle) * from))
+        path.line(to: NSPoint(x: center.x + cos(angle) * to,
+                              y: center.y + sin(angle) * to))
+        path.lineWidth = width
+        path.lineCapStyle = .round
+        color.setStroke()
+        path.stroke()
+    }
+
+    // 分针：指向 12 点，粗一点
+    hand(angle: Double.pi / 2, from: -radius * 0.12, to: radius * 0.56, width: 17, color: ink)
+    // 秒针：指向 1 点半方向，细长，橙色，尾部带配重
+    hand(angle: Double.pi / 2 - Double.pi / 5, from: -radius * 0.20, to: radius * 0.72,
+         width: 9, color: braunOrange)
+
+    // 中心轴：黑色小圆 + 橙色细环
+    let hub = NSBezierPath(ovalIn: NSRect(x: center.x - 20, y: center.y - 20, width: 40, height: 40))
+    ink.setFill()
+    hub.fill()
+    let hubRing = NSBezierPath(ovalIn: NSRect(x: center.x - 27, y: center.y - 27, width: 54, height: 54))
+    braunOrange.setStroke()
+    hubRing.lineWidth = 7
+    hubRing.stroke()
 
     image.unlockFocus()
     return image
@@ -144,7 +147,6 @@ for entry in entries {
     writePNG(image, to: iconsetURL.appendingPathComponent("\(entry.name).png"), pixelSize: entry.pixels)
 }
 
-// 预览图
 writePNG(drawIcon(size: 1024), to: previewURL, pixelSize: 1024)
 
 let process = Process()
