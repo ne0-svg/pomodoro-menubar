@@ -9,6 +9,8 @@ final class SoundFX {
 
     /// 点击音 = 提醒音量的 45%
     static let volumeRatio: Float = 0.45
+    /// 退出音更克制：只有 30%
+    static let quitVolumeRatio: Float = 0.30
 
     private var player: AVAudioPlayer?
     private var quitPlayer: AVAudioPlayer?
@@ -73,7 +75,7 @@ final class SoundFX {
         // 2) 退出用的两声（间隔已缩短）
         if let url = Bundle.main.url(forResource: "quit", withExtension: "wav"),
            let quit = try? AVAudioPlayer(contentsOf: url) {
-            quit.volume = Self.volumeRatio * WatchBeep.alertVolume
+            quit.volume = Self.quitVolumeRatio * WatchBeep.alertVolume
             quit.prepareToPlay()
             quitPlayer = quit
         }
