@@ -100,13 +100,20 @@ struct PopoverView: View {
 
     private var ringBody: some View {
         ZStack {
+            // 底色：计时中为强调色实心，其余为浅色底
             Circle()
-                .stroke(Color.primary.opacity(hover.isHovering ? 0.12 : 0.08), lineWidth: 10)
+                .fill(engine.isRunning ? tint : Color(nsColor: .textBackgroundColor))
+
+            Circle()
+                .stroke(engine.isRunning
+                        ? Color.white.opacity(hover.isHovering ? 0.30 : 0.22)
+                        : Color.primary.opacity(hover.isHovering ? 0.12 : 0.08),
+                        lineWidth: 10)
 
             if engine.progress > 0.002 {
                 Circle()
                     .trim(from: 0, to: engine.progress)
-                    .stroke(tint.gradient,
+                    .stroke(engine.isRunning ? Color.white.opacity(0.9) : tint,
                             style: StrokeStyle(lineWidth: 10, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.25), value: engine.progress)
@@ -116,16 +123,17 @@ struct PopoverView: View {
                 Text(engine.timeText)
                     .font(.system(size: 44, weight: .light, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(engine.isRunning ? Color.white : tint)
 
                 Text(hover.isHovering ? engine.ringHint : engine.stateCaption)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(engine.isRunning ? Color.white.opacity(0.78) : Color.secondary)
             }
         }
         .frame(width: 170, height: 170)
         .contentShape(Circle())
         .scaleEffect(hover.isHovering ? 1.012 : 1)
+        .animation(.easeOut(duration: 0.2), value: engine.isRunning)
         .animation(.easeOut(duration: 0.15), value: hover.isHovering)
     }
 
@@ -152,12 +160,31 @@ struct PopoverView: View {
             Text(engine.primaryTitle)
                 .font(.system(size: 14, weight: .semibold))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 3)
+                .padding(.vertical, 6)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .tint(tint)
-        .clipShape(Capsule())
+        .buttonStyle(FillButtonStyle(filled: engine.isRunning, tint: tint))
+    }
+
+    /// 计时中：实心底 + 白字；暂停 / 待机：浅色底 + 彩色字
+    private struct FillButtonStyle: ButtonStyle {
+        let filled: Bool
+        let tint: Color
+
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .foregroundStyle(filled ? Color.white : tint)
+                .background(
+                    Capsule().fill(filled ? tint : Color(nsColor: .textBackgroundColor))
+                )
+                .overlay(
+                    Capsule().strokeBorder(filled ? Color.clear : tint.opacity(0.35), lineWidth: 1)
+                )
+                .contentShape(Capsule())
+                .opacity(configuration.isPressed ? 0.85 : 1)
+                .scaleEffect(configuration.isPressed ? 0.99 : 1)
+                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+                .animation(.easeOut(duration: 0.2), value: filled)
+        }
     }
 
     private var secondaryButtons: some View {

@@ -155,6 +155,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             }
             if env["POMODORO_SNAPSHOT_REST"] != nil {
                 engine.debugRestState()
+            } else if env["POMODORO_SNAPSHOT_PAUSED"] != nil {
+                engine.debugBeginWork(elapsed: 9 * 60 + 12)
+                engine.pause()
             } else if env["POMODORO_SNAPSHOT_RUNNING"] != nil {
                 engine.debugBeginWork(elapsed: 9 * 60 + 12)
             }
