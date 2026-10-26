@@ -41,12 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private static var statusItemLength: CGFloat {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
         let textWidth = ceil(NSAttributedString(string: "888:88", attributes: [.font: font]).size().width)
-        let emojiWidth = ceil(NSAttributedString(string: "☕️ ", attributes: [.font: font]).size().width)
         let timerIconWidth = ceil(StatusIcon.timer.size.width)
-        // 计时态：图标 + 时间；休息态：咖啡 emoji + 时间
-        let runningWidth = timerIconWidth + textWidth
-        let restWidth = emojiWidth + textWidth
-        return max(runningWidth, restWidth) + 20
+        let coffeeIconWidth = ceil(StatusIcon.coffee.size.width)
+        // 两种状态都是「图标 + 时间」，取更宽的一档
+        return max(timerIconWidth, coffeeIconWidth) + textWidth + 20
     }
 
     // MARK: - 状态栏
@@ -56,12 +54,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         let isRest = engine.phase == .rest
         let timeText = PomodoroEngine.format(engine.remaining)
-        let title = isRest ? "☕️ \(timeText)" : timeText
-        if title != lastTitle {
-            lastTitle = title
+        if timeText != lastTitle {
+            lastTitle = timeText
             let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
-            button.attributedTitle = NSAttributedString(string: title, attributes: [.font: font])
-            button.image = isRest ? nil : StatusIcon.timer
+            button.attributedTitle = NSAttributedString(string: " " + timeText, attributes: [.font: font])
+        }
+        let icon = isRest ? StatusIcon.coffee : StatusIcon.timer
+        if button.image !== icon {
+            button.image = icon
         }
         button.toolTip = "番茄钟 · \(engine.stateCaption)"
     }
@@ -251,6 +251,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 NSLog("POMODORO_QUIT sound-then-terminate")
                 self?.quitWithSound()
             }
+        }
+
+
+        if let prefix = env["POMODORO_DUMP_ICONS"] {
+            let icons: [(String, NSImage)] = [("timer", PixelIcon.timer), ("coffee", PixelIcon.coffee)]
+            for (name, icon) in icons {
+                let scale: CGFloat = 8
+                let size = NSSize(width: icon.size.width * scale, height: icon.size.height * scale)
+                let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
+                                           pixelsWide: Int(size.width), pixelsHigh: Int(size.height),
+                                           bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                           isPlanar: false, colorSpaceName: .deviceRGB,
+                                           bytesPerRow: 0, bitsPerPixel: 0)!
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+                NSGraphicsContext.current?.shouldAntialias = false
+                NSColor.white.setFill()
+                NSRect(origin: .zero, size: size).fill()
+                icon.draw(in: NSRect(origin: .zero, size: size))
+                NSGraphicsContext.restoreGraphicsState()
+                if let png = rep.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: "\(prefix)-\(name).png"))
+                }
+            }
+            NSLog("POMODORO_DUMP_ICONS wrote \(prefix)-*.png")
         }
 
         if let prefix = env["POMODORO_DUMP_SFX"] {

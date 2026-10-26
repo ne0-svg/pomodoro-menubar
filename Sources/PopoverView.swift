@@ -199,32 +199,14 @@ struct PopoverView: View {
 
     private var primaryButton: some View {
         Button(action: startOrPause) {
-            Text(engine.primaryTitle)
-                .font(.system(size: 14, weight: .semibold))
+            Label(engine.primaryTitle, systemImage: engine.isRunning ? "pause.fill" : "play.fill")
+                .font(.system(size: 12, weight: .medium))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
+                .padding(.vertical, 3)
         }
-        .buttonStyle(FillButtonStyle(tint: tint))
-    }
-
-    /// 浅色底 + 彩色字 + 细描边；保留按压缩放反馈
-    private struct FillButtonStyle: ButtonStyle {
-        let tint: Color
-
-        func makeBody(configuration: Configuration) -> some View {
-            configuration.label
-                .foregroundStyle(tint)
-                .background(
-                    Capsule().fill(Color(nsColor: .textBackgroundColor))
-                )
-                .overlay(
-                    Capsule().strokeBorder(tint.opacity(0.35), lineWidth: 1)
-                )
-                .contentShape(Capsule())
-                .opacity(configuration.isPressed ? 0.82 : 1)
-                .scaleEffect(configuration.isPressed ? 0.985 : 1)
-                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .clipShape(Capsule())
     }
 
     private var secondaryButtons: some View {
