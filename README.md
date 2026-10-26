@@ -10,11 +10,11 @@
 ## 下载安装（只想用的话）
 
 从 [Releases](https://github.com/ne0-svg/pomodoro-menubar/releases/latest) 下载
-`Pomodoro-v1.0.0-universal.zip` —— 通用二进制，Apple Silicon 和 Intel 都能跑。
+`Pomodoro-v1.1.0-universal.zip` —— 通用二进制，Apple Silicon 和 Intel 都能跑。
 
 ```bash
-shasum -a 256 Pomodoro-v1.0.0-universal.zip
-# 808e6d655d1236bfc61c2d1563d2c09922cb0a888a1812af2e5fc3a4b273d49d
+shasum -a 256 Pomodoro-v1.1.0-universal.zip
+# e24f10b1b6b6825d904044fba1dabe95a111218f49645a5f98280e97cece543b
 ```
 
 1. 解压后把 `Pomodoro.app` 拖进「应用程序」
