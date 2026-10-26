@@ -1,0 +1,324 @@
+import AppKit
+import SwiftUI
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+
+    private var statusItem: NSStatusItem!
+    private let popover = NSPopover()
+    private let engine = PomodoroEngine()
+    private var lastTitle = ""
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        statusItem = NSStatusBar.system.statusItem(withLength: Self.statusItemLength)
+
+        if let button = statusItem.button {
+            button.target = self
+            button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.toolTip = "番茄钟"
+        }
+
+        let hosting = NSHostingController(
+            rootView: PopoverView(engine: engine, onQuit: { NSApp.terminate(nil) })
+        )
+        popover.contentViewController = hosting
+        popover.behavior = .transient
+        popover.animates = true
+        popover.delegate = self
+
+        engine.onUpdate = { [weak self] in self?.updateStatusItem() }
+        updateStatusItem()
+
+        runDebugHooksIfNeeded()
+    }
+
+    /// 状态栏 item 固定宽度：倒计时位数变化（5:00 → 25:00 → 180:00）或
+    /// 计时 / 休息之间切换 emoji 时，item 都不变宽，锚定其上的 popover 也就不会左右跳。
+    private static var statusItemLength: CGFloat {
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
+        let samples = ["⌛️ 888:88", "☕️ 888:88"]
+        let widest = samples
+            .map { ceil(NSAttributedString(string: $0, attributes: [.font: font]).size().width) }
+            .max() ?? 72
+        return widest + 20
+    }
+
+    /// 计时用 ⌛️，休息用 ☕️
+    private static func emoji(for phase: PomodoroPhase) -> String {
+        phase == .rest ? "☕️" : "⌛️"
+    }
+
+    // MARK: - 状态栏
+
+    private func updateStatusItem() {
+        guard let button = statusItem?.button else { return }
+
+        let title = "\(Self.emoji(for: engine.phase)) \(PomodoroEngine.format(engine.remaining))"
+        if title != lastTitle {
+            lastTitle = title
+            let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
+            button.attributedTitle = NSAttributedString(string: title, attributes: [.font: font])
+        }
+        button.toolTip = "番茄钟 · \(engine.stateCaption)"
+    }
+
+    // MARK: - 交互
+
+    @objc private func statusItemClicked() {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            showContextMenu()
+        } else {
+            togglePopover()
+        }
+    }
+
+    private func togglePopover() {
+        if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            showPopover()
+        }
+    }
+
+    private func showPopover() {
+        guard let button = statusItem.button else { return }
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        positionPopover(under: button)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// NSPopover 在菜单栏上的自动定位不可靠（实测会顶出屏幕上沿，顶部被裁掉），
+    /// 这里按屏幕几何强制摆到图标正下方，并夹在可见区域内。
+    private func positionPopover(under button: NSStatusBarButton) {
+        guard let window = popover.contentViewController?.view.window,
+              let screen = button.window?.screen ?? NSScreen.main else { return }
+
+        let anchor = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
+        let size = window.frame.size
+        let visible = screen.visibleFrame
+        let gap: CGFloat = 4
+
+        var x = anchor.midX - size.width / 2
+        x = min(max(x, visible.minX + 8), visible.maxX - size.width - 8)
+
+        var y = min(visible.maxY, anchor.minY) - size.height - gap
+        y = max(y, visible.minY + 8)
+
+        window.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    /// 面板打开时不要把键盘焦点吸到分钟输入框上（保持面板本身为 key window）
+    func popoverDidShow(_ notification: Notification) {
+        engine.refreshDayIfNeeded()
+        guard let window = popover.contentViewController?.view.window else { return }
+        window.makeFirstResponder(window.contentView)
+    }
+
+    private func showContextMenu() {
+        let menu = NSMenu()
+        let quit = NSMenuItem(title: "退出番茄钟", action: #selector(quit), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
+
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
+    }
+
+    @objc private func quit() {
+        NSApp.terminate(nil)
+    }
+
+    // MARK: - 调试钩子（POMODORO_DEBUG / POMODORO_SNAPSHOT）
+
+    private func runDebugHooksIfNeeded() {
+        let env = ProcessInfo.processInfo.environment
+
+        if let prefix = env["POMODORO_SNAPSHOT"] {
+            let dark = env["POMODORO_SNAPSHOT_APPEARANCE"] == "dark"
+            if dark {
+                NSApp.appearance = NSAppearance(named: .darkAqua)
+                popover.contentViewController?.view.appearance = NSAppearance(named: .darkAqua)
+            }
+            if env["POMODORO_SNAPSHOT_REST"] != nil {
+                engine.debugRestState()
+            } else if env["POMODORO_SNAPSHOT_RUNNING"] != nil {
+                engine.debugBeginWork(elapsed: 9 * 60 + 12)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self = self else { return }
+                if dark {
+                    self.popover.contentViewController?.view.appearance = NSAppearance(named: .darkAqua)
+                }
+                self.showPopover()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    let view = self.popover.contentViewController?.view
+                    let canvas: NSColor = dark
+                        ? NSColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1)
+                        : .windowBackgroundColor
+                    let okPopover = view.map {
+                        self.capture($0, to: prefix + "-popover.png", background: canvas)
+                    } ?? false
+
+                    let button = self.statusItem.button!
+                    button.appearance = NSAppearance(named: .aqua)
+                    let okLight = self.capture(button, to: prefix + "-status-light.png", background: .white)
+                    button.appearance = NSAppearance(named: .darkAqua)
+                    let okDark = self.capture(button, to: prefix + "-status-dark.png", background: .black)
+                    button.appearance = nil
+
+                    NSLog("POMODORO_SNAPSHOT popover=%d light=%d dark=%d appAppearance=%@",
+                          okPopover ? 1 : 0, okLight ? 1 : 0, okDark ? 1 : 0,
+                          NSApp.effectiveAppearance.name.rawValue)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        NSApp.terminate(nil)
+                    }
+                }
+            }
+        }
+
+        if env["POMODORO_DEBUG_POPOVER"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self, let button = self.statusItem.button else { return }
+                self.showPopover()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    let window = self.popover.contentViewController?.view.window
+                    let buttonScreen = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
+                    NSLog("POMODORO_GEOM popoverWindow=%@ buttonScreen=%@ screen=%@ visible=%@ hostFrame=%@",
+                          window.map { NSStringFromRect($0.frame) } ?? "-",
+                          NSStringFromRect(buttonScreen),
+                          NSStringFromRect(NSScreen.main?.frame ?? .zero),
+                          NSStringFromRect(NSScreen.main?.visibleFrame ?? .zero),
+                          self.popover.contentViewController.map { NSStringFromRect($0.view.frame) } ?? "-")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { NSApp.terminate(nil) }
+                }
+            }
+        }
+
+
+        if let path = env["POMODORO_DUMP_BEEP"] {
+            try? WatchBeep.wav(pairs: 10).write(to: URL(fileURLWithPath: path))
+            NSLog("POMODORO_DUMP_BEEP wrote %@", path)
+        }
+
+        if env["POMODORO_DEBUG_RESIZE"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self else { return }
+                self.showPopover()
+                let values = [1, 9, 25, 60, 180, 25]
+                for (i, v) in values.enumerated() {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 + Double(i) * 0.35) {
+                        self.engine.workMinutes = v
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            let host = self.popover.contentViewController
+                            let win = host?.view.window
+                            NSLog("POMODORO_RESIZE v=%d button=%@ title=%@ window=%@",
+                                  v,
+                                  NSStringFromRect(self.statusItem.button?.frame ?? .zero),
+                                  self.statusItem.button?.attributedTitle.string ?? "-",
+                                  win.map { NSStringFromRect($0.frame) } ?? "-")
+                        }
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 + Double(values.count) * 0.35 + 0.4) {
+                    NSApp.terminate(nil)
+                }
+            }
+        }
+
+        if env["POMODORO_DEBUG_CHIME"] != nil {
+            engine.autoLoop = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self = self else { return }
+                self.engine.debugBeginWork(elapsed: TimeInterval(self.engine.workMinutes * 60) - 1)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { [weak self] in
+                self?.engine.debugFinish()
+            }
+        }
+
+        if env["POMODORO_DEBUG_LOOP"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self = self else { return }
+                self.engine.debugBeginWork(elapsed: TimeInterval(self.engine.workMinutes * 60) - 1)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { [weak self] in
+                self?.engine.debugFinish()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 11.0) { [weak self] in
+                guard let self = self else { return }
+                NSLog("POMODORO_LOOP autoLoop=%d phase=%@ running=%d",
+                      self.engine.autoLoop ? 1 : 0, self.engine.phaseName, self.engine.isRunning ? 1 : 0)
+                NSApp.terminate(nil)
+            }
+        }
+
+        if env["POMODORO_DEBUG_ROLLOVER"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.engine.debugSimulateDayRollover()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { NSApp.terminate(nil) }
+            }
+        }
+
+        if env["POMODORO_DEBUG_START"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                self?.engine.debugBeginWork(elapsed: 0)
+            }
+        }
+
+        if env["POMODORO_DEBUG"] != nil {
+            for delay in [1.5, 3.5] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    guard let self = self, let button = self.statusItem?.button else { return }
+                    NSLog("POMODORO_DEBUG t=%.1f mounted=%@ frame=%@ icon=%@ title=%@ state=%@ autoLoop=%d defaults=%d",
+                          delay,
+                          button.window != nil ? "yes" : "no",
+                          NSStringFromRect(button.frame),
+                          button.image?.name() ?? "-",
+                          button.attributedTitle.string,
+                          self.engine.stateCaption,
+                          self.engine.autoLoop ? 1 : 0,
+                          UserDefaults.standard.bool(forKey: "autoStartNext") ? 1 : 0)
+                    NSLog("POMODORO_BUNDLE id=%@ suite=%@", Bundle.main.bundleIdentifier ?? "nil",
+                          UserDefaults.standard.dictionaryRepresentation().keys.sorted().joined(separator: ","))
+                }
+            }
+        }
+    }
+
+    @discardableResult
+    private func capture(_ view: NSView, to path: String, background: NSColor) -> Bool {
+        let bounds = view.bounds
+        guard bounds.width > 1, bounds.height > 1,
+              let rep = view.bitmapImageRepForCachingDisplay(in: bounds) else { return false }
+
+        view.cacheDisplay(in: bounds, to: rep)
+
+        let source = NSImage(size: bounds.size)
+        source.addRepresentation(rep)
+
+        let output = NSImage(size: bounds.size)
+        output.lockFocus()
+        background.setFill()
+        NSRect(origin: .zero, size: bounds.size).fill()
+        source.draw(in: NSRect(origin: .zero, size: bounds.size))
+        output.unlockFocus()
+
+        guard let tiff = output.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:]) else { return false }
+        do {
+            try png.write(to: URL(fileURLWithPath: path))
+            return true
+        } catch {
+            NSLog("POMODORO_SNAPSHOT write failed: %@", error.localizedDescription)
+            return false
+        }
+    }
+}
+
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.setActivationPolicy(.accessory)
+app.run()
