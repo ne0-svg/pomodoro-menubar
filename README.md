@@ -56,9 +56,13 @@ open /Applications/Pomodoro.app
 
 ## 界面
 
-| 待机 | 计时中 | 休息中 |
-| :---: | :---: | :---: |
-| <img src="Preview/popover-light.png" width="260" /> | <img src="Preview/popover-running.png" width="260" /> | <img src="Preview/popover-rest.png" width="260" /> |
+| 待机 | 计时中 |
+| :---: | :---: |
+| <img src="Preview/popover-light.png" width="260" /> | <img src="Preview/popover-running.png" width="260" /> |
+
+| 暂停 | 休息中 |
+| :---: | :---: |
+| <img src="Preview/popover-paused.png" width="260" /> | <img src="Preview/popover-rest.png" width="260" /> |
 
 深色模式会自动适配：
 
@@ -108,10 +112,15 @@ rm -rf /Applications/Pomodoro.app
 
 - **状态栏**：`NSStatusItem` + 固定宽度。宽度按 `⌛️ 888:88` 量出（85 pt），倒计时位数在
   `5:00` / `25:00` / `180:00` 之间变化也不会让 item 伸缩——否则锚定其上的面板会跟着左右跳。
-- **面板**：`NSPopover` + SwiftUI。`NSPopover` 的自带定位在菜单栏上会把面板顶出屏幕上沿
+- **面板**：`NSPopover` + SwiftUI。`NSPopover` 自带的菜单栏定位会把面板顶出屏幕上沿
   （顶部被裁），因此另做了屏幕几何校正，把面板夹在图标正下方与可见区域内。
-- **图标**：状态栏用 emoji（⌛️ 计时 / ☕️ 休息），App 图标是脚本绘制的沙漏，
-  由 `Scripts/make-icon.swift` 离屏渲染并用 `iconutil` 打包成 `AppIcon.icns`。
+- **状态栏图标**：emoji —— 计时 ⌛️、休息 ☕️。
+- **App 图标**：Braun / Sony 那一路的工业设计语言——哑光炭黑圆角底、米白表盘、
+  方头刻度、橙色秒针、顶部表冠；由 `Scripts/make-icon.swift` 离屏绘制并 `iconutil` 打包。
+- **统一配色**：表盘与主按钮在任何状态都是「浅色底 + 强调色文字 + 细描边」，
+  状态差异交给左上角运行灯（绿 = 计时中，红 = 暂停 / 待机）和进度环；
+  按下时有缩放与透明度反馈。深色模式把浅色底换成深色底。
+- **标题**：左上角 `Pamodoro` 做了刻字质感——深色字面 + 下缘高光 + 上缘暗影。
 - **计时状态机**：单一 `Timer` 驱动 `remaining`，阶段切换集中在 `finishPhase()`；
   跨天归零用「下一个北京时间零点」的一次性 Timer 驱动。
 - **提示音**：优先用 `AVAudioPlayer` 播放 bundle 里的 `pomo-chime.mp3`，取它的 `duration`
