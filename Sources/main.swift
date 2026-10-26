@@ -136,8 +136,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func quitWithSound() {
         guard !isQuitting else { return }
         isQuitting = true
-        SoundFX.shared.click()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        SoundFX.shared.quitChime()
+        DispatchQueue.main.asyncAfter(deadline: .now() + SoundFX.shared.quitDuration + 0.05) {
             NSApp.terminate(nil)
         }
     }

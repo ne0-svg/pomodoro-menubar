@@ -127,7 +127,8 @@ rm -rf /Applications/Pomodoro.app
   来决定「响完再开始」的延时；没有音频文件时退回合成 WAV（老式电子表「滴滴。。」）。
   延时动作在提示音期间排队，响完才执行，所以提示音时间不会计入任何一轮计时。
 - **点击音效**：从 `pomo-chime.mp3` 截出第一个音（`Resources/click.wav`，0.47s），
-  所有按钮共用同一个单音；文件缺失时退回合成的 90ms「啪嗒」。
+  所有按钮共用同一个单音，音量固定为提醒音量的 45%；「退出」单独用两声版本
+  （`Resources/quit.wav`，两声间隔 0.38s）；素材缺失时退回合成的 90ms「啪嗒」。
 - **初始化**：先读出全部 `UserDefaults` 再统一赋值，并用 `isLoading` 标记挡掉初始化期间的
   `didSet` 回写，防止启动时把用户设置覆盖成默认值。
 - **分发**：`build.sh` 分别编译 `arm64` 与 `x86_64`，用 `lipo` 合成通用二进制，
@@ -146,7 +147,8 @@ rm -rf /Applications/Pomodoro.app
 │   ├── AppIcon.icns          # App 图标
 │   ├── AppIcon-1024.png      # 图标预览
 │   ├── pomo-chime.mp3        # 结束提示音（缺失时退回合成蜂鸣）
-│   └── click.wav             # 从提示音截取的单音，用于按钮点击
+│   ├── click.wav             # 从提示音截取的单音，用于按钮点击
+│   └── quit.wav              # 退出用的两声（间隔 0.38s）
 ├── Preview/                  # README 用的界面截图
 ├── Scripts/make-icon.swift   # 图标绘制脚本
 ├── Info.plist                # LSUIElement=true（只驻留菜单栏）

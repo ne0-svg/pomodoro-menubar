@@ -7,10 +7,11 @@ final class SoundFX {
 
     static let shared = SoundFX()
 
-    /// 点击音 = 提醒音量的 60%
-    static let volumeRatio: Float = 0.6
+    /// 点击音 = 提醒音量的 45%
+    static let volumeRatio: Float = 0.45
 
     private var player: AVAudioPlayer?
+    private var quitPlayer: AVAudioPlayer?
     private var debugLogging = false
 
     private init() {
@@ -21,14 +22,33 @@ final class SoundFX {
         debugLogging = enabled
     }
 
+    /// 整段退出音时长（两声）
+    var quitDuration: TimeInterval {
+        quitPlayer?.duration ?? 0.85
+    }
+
     /// 单次点击音
     func click() {
+        play(player, name: "click")
+    }
+
+    /// 退出：两声，间隔缩短
+    func quitChime() {
+        guard quitPlayer != nil else {
+            // 没有两声素材时退化成单声
+            play(player, name: "click")
+            return
+        }
+        play(quitPlayer, name: "quit")
+    }
+
+    private func play(_ player: AVAudioPlayer?, name: String) {
         guard let player = player else {
             NSSound.beep()
             return
         }
         if debugLogging {
-            NSLog("POMODORO_SFX click volume=%.2f (alert=%.2f)", player.volume, WatchBeep.alertVolume)
+            NSLog("POMODORO_SFX %@ volume=%.2f (alert=%.2f)", name, player.volume, WatchBeep.alertVolume)
         }
         player.stop()
         player.currentTime = 0
@@ -45,20 +65,29 @@ final class SoundFX {
                 custom.volume = Self.volumeRatio * WatchBeep.alertVolume
                 custom.prepareToPlay()
                 player = custom
-                return
             } catch {
                 NSLog("POMODORO_SFX 点击音加载失败: %@", error.localizedDescription)
             }
         }
 
-        // 2) 兜底：合成的短促「啪嗒」
-        do {
-            let fallback = try AVAudioPlayer(data: Self.fallbackTickWAV())
-            fallback.volume = Self.volumeRatio * WatchBeep.alertVolume
-            fallback.prepareToPlay()
-            player = fallback
-        } catch {
-            NSLog("POMODORO_SFX 兜底音初始化失败: %@", error.localizedDescription)
+        // 2) 退出用的两声（间隔已缩短）
+        if let url = Bundle.main.url(forResource: "quit", withExtension: "wav"),
+           let quit = try? AVAudioPlayer(contentsOf: url) {
+            quit.volume = Self.volumeRatio * WatchBeep.alertVolume
+            quit.prepareToPlay()
+            quitPlayer = quit
+        }
+
+        // 3) 兜底：合成的短促「啪嗒」
+        if player == nil {
+            do {
+                let fallback = try AVAudioPlayer(data: Self.fallbackTickWAV())
+                fallback.volume = Self.volumeRatio * WatchBeep.alertVolume
+                fallback.prepareToPlay()
+                player = fallback
+            } catch {
+                NSLog("POMODORO_SFX 兜底音初始化失败: %@", error.localizedDescription)
+            }
         }
     }
 
