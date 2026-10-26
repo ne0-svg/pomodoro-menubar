@@ -3,3 +3,6 @@ Build/
 
 # macOS
 .DS_Store
+
+# 发布包
+*.zip

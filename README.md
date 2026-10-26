@@ -7,7 +7,26 @@
 
 ---
 
-## 快速开始
+## 下载安装（只想用的话）
+
+从 [Releases](https://github.com/ne0-svg/pomodoro-menubar/releases/latest) 下载
+`Pomodoro-v1.0.0-universal.zip` —— 通用二进制，Apple Silicon 和 Intel 都能跑。
+
+```bash
+shasum -a 256 Pomodoro-v1.0.0-universal.zip
+# 808e6d655d1236bfc61c2d1563d2c09922cb0a888a1812af2e5fc3a4b273d49d
+```
+
+1. 解压后把 `Pomodoro.app` 拖进「应用程序」
+2. 首次打开会被 Gatekeeper 拦下（没有 Apple 公证，不是有病毒），任选一种放行：
+   - 右键点 App → **打开** → 再点「打开」
+   - 或 系统设置 → 隐私与安全性 → 底部「**仍要打开**」
+   - 或终端 `xattr -dr com.apple.quarantine /Applications/Pomodoro.app`
+3. 打开后不会出现在 Dock，只在屏幕右上角菜单栏
+
+> 想开机自启：系统设置 → 通用 → 登录项 → 「登录时打开」选择 Pomodoro.app。
+
+## 从源码构建
 
 环境要求：macOS 13+、Xcode Command Line Tools（提供 `swiftc`）。
 
@@ -17,6 +36,9 @@ cd pomodoro-menubar
 ./run.sh            # 编译 + 启动，看屏幕右上角菜单栏
 ```
 
+`build.sh` 会分别编译 arm64 与 x86_64 再 `lipo` 合成通用二进制；本机构建出来的
+App 没有 quarantine 标记，双击不会被 Gatekeeper 拦。
+
 只编译不启动：
 
 ```bash
@@ -24,7 +46,7 @@ cd pomodoro-menubar
 open Build/Pomodoro.app
 ```
 
-装进「应用程序」并开机自启：
+装进「应用程序」：
 
 ```bash
 cp -R Build/Pomodoro.app /Applications/
@@ -94,6 +116,8 @@ rm -rf /Applications/Pomodoro.app
   响完才执行，所以提示音时间不会计入任何一轮计时。
 - **初始化**：先读出全部 `UserDefaults` 再统一赋值，并用 `isLoading` 标记挡掉初始化期间的
   `didSet` 回写，防止启动时把用户设置覆盖成默认值。
+- **分发**：`build.sh` 分别编译 `arm64` 与 `x86_64`，用 `lipo` 合成通用二进制，
+  再 ad-hoc 签名打 zip 发 Release（因此未公证，首次打开需要手动放行）。
 
 ## 目录结构
 
@@ -160,3 +184,7 @@ POMODORO_DEBUG=1 POMODORO_DEBUG_ROLLOVER=1 ./Build/Pomodoro.app/Contents/MacOS/P
 - 系统通知通过 `osascript` 发送，首次可能被系统询问权限。
 - 计时进度不跨进程保存：重启 App 回到待机状态，今日计数保留。
 - 面板用 SwiftUI，最低 macOS 13。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 ne0-svg
