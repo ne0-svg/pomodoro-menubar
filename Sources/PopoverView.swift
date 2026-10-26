@@ -53,8 +53,8 @@ struct PopoverView: View {
 
             footer
                 .padding(.horizontal, 18)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 16)
         }
         .frame(width: 300)
         .onAppear { focusedField = nil }
@@ -83,7 +83,7 @@ struct PopoverView: View {
     // MARK: - 环形计时（点击表盘 = 开始 / 暂停 / 继续）
 
     private var ring: some View {
-        Button(action: engine.primaryAction) {
+        Button(action: startOrPause) {
             ringBody
         }
         .buttonStyle(RingPressStyle())
@@ -139,10 +139,19 @@ struct PopoverView: View {
         }
     }
 
+    /// 开始 / 暂停：开始计时时播放钟表「啪嗒」声
+    private func startOrPause() {
+        let wasRunning = engine.isRunning
+        engine.primaryAction()
+        if !wasRunning && engine.isRunning {
+            SoundFX.shared.tick()
+        }
+    }
+
     // MARK: - 主操作
 
     private var primaryButton: some View {
-        Button(action: engine.primaryAction) {
+        Button(action: startOrPause) {
             Text(engine.primaryTitle)
                 .font(.system(size: 14, weight: .semibold))
                 .frame(maxWidth: .infinity)
@@ -261,15 +270,14 @@ struct PopoverView: View {
     // MARK: - 底部
 
     private var footer: some View {
-        HStack(spacing: 12) {
-            Spacer(minLength: 8)
-
-            Button(action: onQuit) {
-                Label("退出", systemImage: "power")
-                    .font(.system(size: 11))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+        Button(action: onQuit) {
+            Label("退出", systemImage: "power")
+                .font(.system(size: 13, weight: .medium))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 2)
         }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .clipShape(Capsule())
     }
 }

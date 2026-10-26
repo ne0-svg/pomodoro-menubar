@@ -7,8 +7,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let popover = NSPopover()
     private let engine = PomodoroEngine()
     private var lastTitle = ""
+    private var isQuitting = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        SoundFX.shared.setDebugLogging(ProcessInfo.processInfo.environment["POMODORO_DEBUG"] != nil)
+
         statusItem = NSStatusBar.system.statusItem(withLength: Self.statusItemLength)
 
         if let button = statusItem.button {
@@ -19,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         let hosting = NSHostingController(
-            rootView: PopoverView(engine: engine, onQuit: { NSApp.terminate(nil) })
+            rootView: PopoverView(engine: engine, onQuit: { [weak self] in self?.quitWithSound() })
         )
         popover.contentViewController = hosting
         popover.behavior = .transient
@@ -126,7 +129,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func quit() {
-        NSApp.terminate(nil)
+        quitWithSound()
+    }
+
+    /// 先播老式电视机关机音，响完再退出
+    private func quitWithSound() {
+        guard !isQuitting else { return }
+        isQuitting = true
+        SoundFX.shared.tvOff()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.78) {
+            NSApp.terminate(nil)
+        }
     }
 
     // MARK: - 调试钩子（POMODORO_DEBUG / POMODORO_SNAPSHOT）
@@ -227,6 +240,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
 
+
+
+        if env["POMODORO_DEBUG_QUIT"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                NSLog("POMODORO_QUIT sound-then-terminate")
+                self?.quitWithSound()
+            }
+        }
+
+        if let prefix = env["POMODORO_DUMP_SFX"] {
+            try? SoundFX.tickWAV().write(to: URL(fileURLWithPath: prefix + "-tick.wav"))
+            try? SoundFX.tvOffWAV().write(to: URL(fileURLWithPath: prefix + "-tvoff.wav"))
+            NSLog("POMODORO_DUMP_SFX wrote %@-tick.wav / -tvoff.wav", prefix)
+        }
 
         if env["POMODORO_DEBUG_CHIMEWAIT"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
