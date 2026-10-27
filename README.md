@@ -17,7 +17,7 @@
    - 右键点 App → **打开** → 再点「打开」
    - 或 系统设置 → 隐私与安全性 → 底部「**仍要打开**」
    - 或终端 `xattr -dr com.apple.quarantine /Applications/Pomodoro.app`
-4. 打开后不会出现在 Dock，只在屏幕右上角菜单栏（`Pomodoro` 图标 + 倒计时）
+4. 打开后不会出现在 Dock，只在屏幕右上角菜单栏（计时器图标 + 倒计时）
 
 > 想开机自启：系统设置 → 通用 → 登录项 → 「登录时打开」选择 Pomodoro.app。
 
@@ -75,7 +75,7 @@ open /Applications/Pomodoro.app
 
 ## 功能
 
-- **菜单栏常驻倒计时**：计时状态是 8-bit 像素麦金塔 + `24:59`，休息状态换成冒热气的像素咖啡杯 + `4:10`，等宽数字不跳动
+- **菜单栏常驻倒计时**：计时状态是 8-bit 像素麦金塔 + `24:59`，休息状态换成冒热气的像素咖啡杯 + `4:10`
 - **毫秒显示**：面板里秒后面跟两位毫秒（`29:13.99`，50fps 刷新）；状态栏仍只显示到秒
 - **点击开面板**：环形进度、大号等宽时间、胶囊按钮；右键图标可直接退出
 - **点击表盘**：直接点圆形表盘即可开始 / 暂停 / 继续（悬停时光标变手型、状态文字提示当前动作）
@@ -84,15 +84,58 @@ open /Applications/Pomodoro.app
 - **自动循环**：一轮 = 一次计时 + 一次休息。开启时休息结束自动进入下一轮；关闭时休息结束即自动停止
 - **结束提示音**：播放内置的 `Resources/pomo-chime.mp3`（约 6 秒），响度跟随系统输出音量；
   若音频缺失会自动退回合成的电子表蜂鸣（4000 Hz「滴滴。。」）
-- **提示音不计时**：提示音期间计时暂停、下一阶段不启动，响完才开始（时长按音频实际长度自动适配）；
-  想提前开始可以点表盘或主按钮「跳过提醒，立即开始」
-- **点击音效**：从提示音里截出 **0.11 秒**的极短尾音（`Resources/click.wav`），
-  所有按钮（开始 / 暂停 / 重置 / 跳过 / 退出）共用这一个音，音量固定为提醒音量的 **30%**，
-  短促克制；素材缺失时退回合成的 90ms「啪嗒」。
+- **提示音不计时**：提示音期间计时暂停、下一阶段不启动，响完才开始（时长按音频实际长度自动适配）
+- **点击音效**：所有按钮共用同一段 0.11 秒的短音（`Resources/click.wav`），音量固定为提醒音量的 30%
+- **今日计数**：以北京时间 00:00 为一天的分界，跨天自动归零，无需重启
+- **设置持久化**：写入 `UserDefaults`，重启后保留
+
+## 使用说明
+
+| 操作 | 说明 |
+| --- | --- |
+| 左键点图标 | 打开 / 收起面板 |
+| 右键点图标 | 菜单：退出 |
+| 面板主按钮 / 点表盘 | 开始计时 / 暂停 / 继续（每次点击都有短音反馈） |
+| 重置 / 跳过 | 重置回待机；跳过当前阶段 |
+| 自动循环 | 关掉后，一整轮（计时 + 休息）跑完自动停 |
+| 提醒中 | 提示音期间计时暂停；点表盘 / 主按钮可跳过提醒立即开始 |
+| 今日 N 个 | 每个完成的计时阶段 +1，北京时间零点清零 |
+| 退出 | 面板右下角的胶囊按钮，点击响一声后退出 |
+
+菜单栏图标位置：按住 `Cmd` 拖动即可排序或移除。
+
+卸载：
+
+```bash
+pkill -x Pomodoro
+defaults delete local.maxwell.pomodoro
+rm -rf /Applications/Pomodoro.app
+```
+
+## 实现要点
+
+- **状态栏**：`NSStatusItem` + 固定宽度（按两种像素图标里更宽的一档算），倒计时位数在
+  `5:00` / `25:00` / `180:00` 之间变化都不会让 item 伸缩——否则锚定其上的面板会跟着左右跳。
+- **像素图标**：`PixelIcon` 用 16×16 字符画渲染成模板位图，每格固定 2×2 设备像素，
+  2x 屏上边缘是硬的；计时为像素麦金塔、休息为冒热气的像素咖啡杯，深浅色自动反色。
+- **面板**：`NSPopover` + SwiftUI。`NSPopover` 自带的菜单栏定位会把面板顶出屏幕上沿
+  （顶部被裁），因此另做了屏幕几何校正，把面板夹在图标正下方与可见区域内。
+- **统一配色**：表盘与主按钮在任何状态都是「浅色底 + 强调色文字 + 细描边」，
+  状态差异交给左上角运行灯（绿 = 计时中，红 = 暂停 / 待机）和进度环；深色模式换成深色底。
+- **标题**：左上角 `Pamodoro` 做了刻字质感——深色字面 + 下缘高光 + 上缘暗影。
+- **表盘液体**：`DialLiquid` 用 `TimelineView(.animation)` + `Canvas` 画一团**低对比、强扩散**的
+  水银——单一大液滴以约 40 秒周期缓慢漂移、边缘极轻地起伏，径向渐变在边缘之前就淡出，
+  再叠 13pt 模糊整体化进背景；只有缓慢移动的明暗，没有清晰轮廓。深色模式自动降低亮度。
+- **计时状态机**：单一 `Timer`（20ms 间隔）驱动 `remaining`，毫秒由剩余时间直接算出；
+  阶段切换集中在 `finishPhase()`，跨天归零用「下一个北京时间零点」的一次性 Timer 驱动。
+- **提示音**：优先用 `AVAudioPlayer` 播放 bundle 里的 `pomo-chime.mp3`，取它的 `duration`
+  来决定「响完再开始」的延时；没有音频文件时退回合成 WAV（老式电子表「滴滴。。」）。
+- **点击音效**：从提示音里截出 0.11 秒的极短尾音（`Resources/click.wav`），
+  所有按钮共用，音量 30%；素材缺失时退回合成的 90ms「啪嗒」。
 - **初始化**：先读出全部 `UserDefaults` 再统一赋值，并用 `isLoading` 标记挡掉初始化期间的
   `didSet` 回写，防止启动时把用户设置覆盖成默认值。
 - **分发**：`build.sh` 分别编译 `arm64` 与 `x86_64`，用 `lipo` 合成通用二进制，
-  再 ad-hoc 签名打 zip 发 Release（因此未公证，首次打开需要手动放行）。
+  再 ad-hoc 签名打包（zip / dmg）发 Release（因此未公证，首次打开需要手动放行）。
 
 ## 目录结构
 
@@ -102,7 +145,11 @@ open /Applications/Pomodoro.app
 │   ├── main.swift            # AppDelegate：状态栏 item、popover、调试钩子
 │   ├── PomodoroEngine.swift  # 计时状态机 + 持久化 + 每日归零
 │   ├── PopoverView.swift     # SwiftUI 面板
-│   └── WatchBeep.swift       # 合成电子表蜂鸣
+│   ├── DialLiquid.swift      # 表盘里的水银液体
+│   ├── PixelIcon.swift       # 8-bit 像素图标（麦金塔 / 咖啡杯）
+│   ├── StatusIcon.swift      # 菜单栏图标入口
+│   ├── SoundFX.swift         # 按钮点击音
+│   └── WatchBeep.swift       # 结束提示音（含合成兜底）
 ├── Resources/
 │   ├── AppIcon.icns          # App 图标
 │   ├── AppIcon-1024.png      # 图标预览
@@ -111,8 +158,9 @@ open /Applications/Pomodoro.app
 ├── Preview/                  # README 用的界面截图
 ├── Scripts/make-icon.swift   # 图标绘制脚本
 ├── Info.plist                # LSUIElement=true（只驻留菜单栏）
-├── build.sh                  # swiftc 编译 + ad-hoc 签名 + 拷贝图标
-└── run.sh                    # build + open
+├── build.sh                  # 编译 arm64 + x86_64 → lipo → 签名
+├── run.sh                    # build + open
+└── LICENSE                   # MIT
 ```
 
 ## 调试
@@ -124,8 +172,12 @@ POMODORO_DEBUG=1 POMODORO_DEBUG_START=1 ./Build/Pomodoro.app/Contents/MacOS/Pomo
 # 离屏渲染面板与状态栏截图（不需要屏幕录制权限）
 POMODORO_SNAPSHOT=/tmp/snap ./Build/Pomodoro.app/Contents/MacOS/Pomodoro
 POMODORO_SNAPSHOT=/tmp/snap POMODORO_SNAPSHOT_RUNNING=1 ./Build/Pomodoro.app/Contents/MacOS/Pomodoro
+POMODORO_SNAPSHOT=/tmp/snap POMODORO_SNAPSHOT_PAUSED=1 ./Build/Pomodoro.app/Contents/MacOS/Pomodoro
 POMODORO_SNAPSHOT=/tmp/snap POMODORO_SNAPSHOT_REST=1 ./Build/Pomodoro.app/Contents/MacOS/Pomodoro
 POMODORO_SNAPSHOT=/tmp/snap POMODORO_SNAPSHOT_APPEARANCE=dark ./Build/Pomodoro.app/Contents/MacOS/Pomodoro
+
+# 连拍两帧，用于验证液体动效确实在跑
+POMODORO_SNAPSHOT=/tmp/snap POMODORO_SNAPSHOT_TWICE=1 ./Build/Pomodoro.app/Contents/MacOS/Pomodoro
 
 # 面板窗口 / 屏幕几何
 POMODORO_DEBUG_POPOVER=1 ./Build/Pomodoro.app/Contents/MacOS/Pomodoro
@@ -140,8 +192,6 @@ POMODORO_DEBUG=1 POMODORO_DEBUG_LOOP=1 ./Build/Pomodoro.app/Contents/MacOS/Pomod
 # 验证跨天归零
 POMODORO_DEBUG=1 POMODORO_DEBUG_ROLLOVER=1 ./Build/Pomodoro.app/Contents/MacOS/Pomodoro
 ```
-
-`POMODORO_SNAPSHOT` 会写出 `-popover.png`、`-status-light.png`、`-status-dark.png` 后自动退出。
 
 ## 其他实现方案
 

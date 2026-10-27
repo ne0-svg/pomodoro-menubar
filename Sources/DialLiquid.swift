@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// 表盘里的一团水银：单个大液滴，缓慢漂移 + 表面轻微起伏，
-/// 用金属渐变 + 高光 + 底部反光模拟真实水银质感。
+/// 表盘背景里的「水银」——克制的液体感：
+/// 参照 iOS 26/27 Liquid Glass 的做法：材质本身是低对比、强扩散的透镜层，
+/// 高光含蓄、边缘完全化开，只靠缓慢的形变和位移让人感觉到「在流动」。
 struct DialLiquid: View {
 
     @Environment(\.colorScheme) private var colorScheme
@@ -14,20 +15,20 @@ struct DialLiquid: View {
                 let dialRadius = min(size.width, size.height) / 2
                 let dark = colorScheme == .dark
 
-                // 缓慢漂移：整体偏下半区，避免盖住时间和状态文字
-                let driftX = sin(t * 0.23) * dialRadius * 0.16
-                let driftY = center.y + dialRadius * 0.66 + cos(t * 0.17) * dialRadius * 0.04
+                // 缓慢漂移（周期约 40 秒，几乎察觉不到但一直在动）
+                let driftX = sin(t * 0.155) * dialRadius * 0.22
+                let driftY = center.y + dialRadius * 0.30 + cos(t * 0.115) * dialRadius * 0.10
                 let blobCenter = CGPoint(x: center.x + driftX, y: driftY)
-                let blobRadius = dialRadius * 0.34
+                let blobRadius = dialRadius * 0.52
 
-                // 有机外形：单一液滴，边缘缓慢起伏
+                // 有机外形：边缘缓慢起伏，但整体仍是一团
                 var path = Path()
-                let steps = 140
+                let steps = 160
                 for i in 0...steps {
                     let angle = Double(i) / Double(steps) * 2 * Double.pi
                     let wobble = 1.0
-                        + 0.050 * sin(3 * angle + t * 0.55)
-                        + 0.028 * sin(5 * angle - t * 0.40)
+                        + 0.045 * sin(2 * angle + t * 0.18)
+                        + 0.030 * sin(3 * angle - t * 0.13)
                     let radius = blobRadius * wobble
                     let point = CGPoint(x: blobCenter.x + CGFloat(cos(angle) * radius),
                                         y: blobCenter.y + CGFloat(sin(angle) * radius))
@@ -35,62 +36,42 @@ struct DialLiquid: View {
                 }
                 path.closeSubpath()
 
-                // 投影
-                var shadow = context
-                shadow.addFilter(.blur(radius: 12))
-                shadow.translateBy(x: 0, y: 7)
-                shadow.fill(path, with: .color(.black.opacity(dark ? 0.45 : 0.14)))
-
-                // 水银本体：顶部亮、腰部银、底部再反光
+                // 本体：低对比的银灰，径向在边缘之前就淡出（不出现硬边）
+                let core = dark ? Color(white: 0.92) : Color(red: 0.52, green: 0.58, blue: 0.68)
                 let body = Gradient(stops: [
-                    .init(color: dark ? Color(white: 0.80) : Color(white: 1.00), location: 0.00),
-                    .init(color: dark ? Color(white: 0.55) : Color(red: 0.90, green: 0.93, blue: 0.97), location: 0.30),
-                    .init(color: dark ? Color(white: 0.20) : Color(red: 0.45, green: 0.51, blue: 0.60), location: 0.68),
-                    .init(color: dark ? Color(white: 0.12) : Color(red: 0.36, green: 0.41, blue: 0.50), location: 0.88),
-                    .init(color: dark ? Color(white: 0.35) : Color(red: 0.78, green: 0.83, blue: 0.90), location: 1.00),
+                    .init(color: core.opacity(dark ? 0.13 : 0.16), location: 0.00),
+                    .init(color: core.opacity(dark ? 0.10 : 0.13), location: 0.55),
+                    .init(color: core.opacity(0.0), location: 0.92),
                 ])
-                context.fill(path, with: .linearGradient(
-                    body,
-                    startPoint: CGPoint(x: blobCenter.x, y: blobCenter.y - blobRadius),
-                    endPoint: CGPoint(x: blobCenter.x, y: blobCenter.y + blobRadius)))
+                context.fill(path, with: .radialGradient(body,
+                                                         center: blobCenter,
+                                                         startRadius: 0,
+                                                         endRadius: blobRadius * 1.02))
 
-                // 顶部高光（主反射）
+                // 含蓄的高光：一块柔和的偏移亮部，随液体缓慢移动
                 var highlight = context
-                highlight.addFilter(.blur(radius: 3.5))
-                let hlRect = CGRect(x: blobCenter.x - blobRadius * 0.52,
-                                    y: blobCenter.y - blobRadius * 0.62,
-                                    width: blobRadius * 0.58,
-                                    height: blobRadius * 0.30)
-                highlight.fill(Path(ellipseIn: hlRect), with: .color(.white))
-
-                // 次级小高光，增加湿润感
-                var sparkle = context
-                sparkle.addFilter(.blur(radius: 1.6))
-                let spRect = CGRect(x: blobCenter.x + blobRadius * 0.18,
-                                    y: blobCenter.y - blobRadius * 0.30,
-                                    width: blobRadius * 0.16,
-                                    height: blobRadius * 0.12)
-                sparkle.fill(Path(ellipseIn: spRect),
-                             with: .color(.white.opacity(dark ? 0.45 : 0.85)))
-
-                // 底部反射光带（桌面/环境倒影）
-                var bottomGlow = context
-                bottomGlow.addFilter(.blur(radius: 7))
-                let glowRect = CGRect(x: blobCenter.x - blobRadius * 0.46,
-                                      y: blobCenter.y + blobRadius * 0.52,
-                                      width: blobRadius * 0.92,
-                                      height: blobRadius * 0.24)
-                bottomGlow.fill(Path(ellipseIn: glowRect),
-                                with: .color(.white.opacity(dark ? 0.20 : 0.55)))
-
-                // 边缘收一下，避免糊成一坨
-                context.stroke(path,
-                               with: .color(dark ? .white.opacity(0.18) : .black.opacity(0.16)),
-                               lineWidth: 1.2)
+                highlight.addFilter(.blur(radius: 9))
+                let hlRadius = blobRadius * 0.34
+                let hlCenter = CGPoint(x: blobCenter.x - blobRadius * 0.26,
+                                       y: blobCenter.y - blobRadius * 0.24)
+                let hlGradient = Gradient(colors: [
+                    Color.white.opacity(dark ? 0.16 : 0.42),
+                    Color.white.opacity(0.0),
+                ])
+                highlight.fill(Path(ellipseIn: CGRect(x: hlCenter.x - hlRadius,
+                                                      y: hlCenter.y - hlRadius,
+                                                      width: hlRadius * 2,
+                                                      height: hlRadius * 2)),
+                               with: .radialGradient(hlGradient,
+                                                     center: hlCenter,
+                                                     startRadius: 0,
+                                                     endRadius: hlRadius))
             }
+            // 整体再糊一层：边缘彻底化进背景，只在明暗上留下流动的痕迹
+            .blur(radius: 13)
         }
         .clipShape(Circle())
-        .opacity(0.95)
         .allowsHitTesting(false)
+        .opacity(0.95)
     }
 }
