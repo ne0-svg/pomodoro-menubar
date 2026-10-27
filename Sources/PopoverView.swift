@@ -142,6 +142,8 @@ struct PopoverView: View {
             Circle()
                 .fill(Color(nsColor: .textBackgroundColor))
 
+            DialLiquid()
+
             Circle()
                 .stroke(Color.primary.opacity(hover.isHovering ? 0.14 : 0.09), lineWidth: 10)
 
@@ -244,7 +246,7 @@ struct PopoverView: View {
     private var settings: some View {
         VStack(spacing: 0) {
             row("计时时长") {
-                minutesEditor(workMinutesBinding, field: .work)
+                minutesEditor(workMinutesBinding, field: .work, step: 5)
             }
 
             row("休息时长") {
@@ -280,7 +282,7 @@ struct PopoverView: View {
     }
 
     /// 任意分钟输入：输入框（可直接键入）+ 步进器（±1 分钟），范围 1–180
-    private func minutesEditor(_ binding: Binding<Int>, field: Field) -> some View {
+    private func minutesEditor(_ binding: Binding<Int>, field: Field, step: Int = 1) -> some View {
         HStack(spacing: 6) {
             TextField("", value: binding, format: .number)
                 .focused($focusedField, equals: field)
@@ -294,7 +296,7 @@ struct PopoverView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
-            Stepper("", value: binding, in: 1...180)
+            Stepper("", value: binding, in: 1...180, step: step)
                 .labelsHidden()
                 .controlSize(.small)
         }
