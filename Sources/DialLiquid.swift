@@ -39,8 +39,8 @@ struct DialLiquid: View {
                 // 本体：低对比的银灰，径向在边缘之前就淡出（不出现硬边）
                 let core = dark ? Color(white: 0.92) : Color(red: 0.52, green: 0.58, blue: 0.68)
                 let body = Gradient(stops: [
-                    .init(color: core.opacity(dark ? 0.13 : 0.16), location: 0.00),
-                    .init(color: core.opacity(dark ? 0.10 : 0.13), location: 0.55),
+                    .init(color: core.opacity(dark ? 0.18 : 0.24), location: 0.00),
+                    .init(color: core.opacity(dark ? 0.14 : 0.19), location: 0.55),
                     .init(color: core.opacity(0.0), location: 0.92),
                 ])
                 context.fill(path, with: .radialGradient(body,
@@ -68,7 +68,7 @@ struct DialLiquid: View {
                                                      endRadius: hlRadius))
             }
             // 整体再糊一层：边缘彻底化进背景，只在明暗上留下流动的痕迹
-            .blur(radius: 13)
+            .blur(radius: 10)
         }
         .clipShape(Circle())
         .allowsHitTesting(false)
