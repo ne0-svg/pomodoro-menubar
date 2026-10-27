@@ -7,8 +7,8 @@ enum StatusGlyph {
     static let timer: NSImage = make { _ in
         NSColor.black.setFill()
 
-        let center = NSPoint(x: 8, y: 8)
-        let maxRadius: CGFloat = 7.0
+        let center = NSPoint(x: 9, y: 9)
+        let maxRadius: CGFloat = 8.3
 
         let spikes = 10.0
         let seed = 1.2
@@ -40,7 +40,7 @@ enum StatusGlyph {
     }
 
     private static func make(_ draw: @escaping (NSRect) -> Void) -> NSImage {
-        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
             draw(rect)
             return true
         }
