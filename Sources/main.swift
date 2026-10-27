@@ -41,9 +41,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private static var statusItemLength: CGFloat {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
         let textWidth = ceil(NSAttributedString(string: "888:88", attributes: [.font: font]).size().width)
-        let pawWidth = ceil(NSAttributedString(string: "🐾 ", attributes: [.font: font]).size().width)
+        let pawWidth = ceil(StatusIcon.paw.size.width)
         let coffeeIconWidth = ceil(StatusIcon.coffee.size.width)
-        // 计时：🐾 + 时间；休息：咖啡图标 + 时间，取更宽的一档
+        // 两种状态都是「图标 + 时间」，取更宽的一档
         return max(pawWidth, coffeeIconWidth) + textWidth + 20
     }
 
@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         let isRest = engine.phase == .rest
         let timeText = PomodoroEngine.format(engine.remaining)
-        let title = isRest ? timeText : "🐾 " + timeText
+        let title = timeText
 
         if title != lastTitle {
             lastTitle = title
@@ -62,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             button.attributedTitle = NSAttributedString(string: title, attributes: [.font: font])
         }
 
-        let icon: NSImage? = isRest ? StatusIcon.coffee : nil
+        let icon: NSImage = isRest ? StatusIcon.coffee : StatusIcon.paw
         if button.image !== icon {
             button.image = icon
         }
@@ -269,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
 
         if let prefix = env["POMODORO_DUMP_ICONS"] {
-            let icons: [(String, NSImage)] = [("coffee", PixelIcon.coffee)]
+            let icons: [(String, NSImage)] = [("paw", StatusIcon.paw), ("coffee", PixelIcon.coffee)]
             for (name, icon) in icons {
                 let scale: CGFloat = 8
                 let size = NSSize(width: icon.size.width * scale, height: icon.size.height * scale)
