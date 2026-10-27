@@ -1,51 +1,42 @@
 import AppKit
 
-/// 状态栏用的矢量模板图标（16pt 画布，字形约 14pt）。
+/// 状态栏用的矢量模板图标（16pt 画布）。
 enum StatusGlyph {
 
-    /// 计时：带箭头的圆环 + 指针
+    /// 计时：不规则的黑白「溅墨/液滴」形，参考图简化版
     static let timer: NSImage = make { _ in
-        NSColor.black.setStroke()
         NSColor.black.setFill()
 
-        let center = NSPoint(x: 8.0, y: 8.0)
-        let radius: CGFloat = 5.4
+        let center = NSPoint(x: 8, y: 8)
+        let maxRadius: CGFloat = 7.0
 
-        // 圆环：从 -21° 逆时针画 301°，在右下留出缺口放箭头
-        let arc = NSBezierPath()
-        arc.appendArc(withCenter: center, radius: radius,
-                      startAngle: -21, endAngle: -80, clockwise: false)
-        arc.lineWidth = 1.55
-        arc.lineCapStyle = .round
-        arc.stroke()
+        let spikes = 10.0
+        let seed = 1.2
+        let sharpness = 2.6
+        let base = 0.62
+        let amplitude = 0.38
 
-        // 箭头：在 -21° 处，沿逆时针切线方向
-        let angle = -21.0 * Double.pi / 180.0
-        let tip = NSPoint(x: center.x + CGFloat(cos(angle)) * radius,
-                          y: center.y + CGFloat(sin(angle)) * radius)
-        let tangent = CGPoint(x: -sin(angle), y: cos(angle))
-        let normal = CGPoint(x: cos(angle), y: sin(angle))
-        let arrow = NSBezierPath()
-        arrow.move(to: NSPoint(x: tip.x + tangent.x * 2.0, y: tip.y + tangent.y * 2.0))
-        arrow.line(to: NSPoint(x: tip.x + normal.x * 1.5, y: tip.y + normal.y * 1.5))
-        arrow.line(to: NSPoint(x: tip.x - normal.x * 1.5, y: tip.y - normal.y * 1.5))
-        arrow.close()
-        arrow.fill()
+        var points: [NSPoint] = []
+        let steps = 720
+        for i in 0...steps {
+            let theta = Double(i) / Double(steps) * 2 * Double.pi
+            let peak = pow(0.5 + 0.5 * cos(spikes * theta + seed), sharpness)
+            let variation = 1 + 0.22 * sin(2 * theta + 0.9) + 0.12 * sin(5 * theta + 2.1)
+            let r = (base + amplitude * peak) * variation
+            points.append(NSPoint(x: CGFloat(cos(theta) * r), y: CGFloat(sin(theta) * r)))
+        }
 
-        // 指针
-        let longHand = NSBezierPath()
-        longHand.move(to: center)
-        longHand.line(to: NSPoint(x: center.x, y: center.y + 3.9))
-        longHand.lineWidth = 1.45
-        longHand.lineCapStyle = .round
-        longHand.stroke()
+        // 归一化到画布内
+        let largest = points.map { hypot($0.x, $0.y) }.max() ?? 1
+        let scale = maxRadius / largest
 
-        let shortHand = NSBezierPath()
-        shortHand.move(to: center)
-        shortHand.line(to: NSPoint(x: center.x + 2.7, y: center.y - 2.1))
-        shortHand.lineWidth = 1.45
-        shortHand.lineCapStyle = .round
-        shortHand.stroke()
+        let path = NSBezierPath()
+        for (index, point) in points.enumerated() {
+            let p = NSPoint(x: center.x + point.x * scale, y: center.y + point.y * scale)
+            if index == 0 { path.move(to: p) } else { path.line(to: p) }
+        }
+        path.close()
+        path.fill()
     }
 
     private static func make(_ draw: @escaping (NSRect) -> Void) -> NSImage {
