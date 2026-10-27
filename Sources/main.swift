@@ -41,10 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private static var statusItemLength: CGFloat {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
         let textWidth = ceil(NSAttributedString(string: "888:88", attributes: [.font: font]).size().width)
-        let timerIconWidth = ceil(StatusIcon.timer.size.width)
+        let pawWidth = ceil(NSAttributedString(string: "🐾 ", attributes: [.font: font]).size().width)
         let coffeeIconWidth = ceil(StatusIcon.coffee.size.width)
-        // 两种状态都是「图标 + 时间」，取更宽的一档
-        return max(timerIconWidth, coffeeIconWidth) + textWidth + 20
+        // 计时：🐾 + 时间；休息：咖啡图标 + 时间，取更宽的一档
+        return max(pawWidth, coffeeIconWidth) + textWidth + 20
     }
 
     // MARK: - 状态栏
@@ -54,12 +54,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         let isRest = engine.phase == .rest
         let timeText = PomodoroEngine.format(engine.remaining)
-        if timeText != lastTitle {
-            lastTitle = timeText
+        let title = isRest ? timeText : "🐾 " + timeText
+
+        if title != lastTitle {
+            lastTitle = title
             let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
-            button.attributedTitle = NSAttributedString(string: " " + timeText, attributes: [.font: font])
+            button.attributedTitle = NSAttributedString(string: title, attributes: [.font: font])
         }
-        let icon = isRest ? StatusIcon.coffee : StatusIcon.timer
+
+        let icon: NSImage? = isRest ? StatusIcon.coffee : nil
         if button.image !== icon {
             button.image = icon
         }
@@ -266,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
 
         if let prefix = env["POMODORO_DUMP_ICONS"] {
-            let icons: [(String, NSImage)] = [("timer", PixelIcon.bomb), ("coffee", PixelIcon.coffee)]
+            let icons: [(String, NSImage)] = [("coffee", PixelIcon.coffee)]
             for (name, icon) in icons {
                 let scale: CGFloat = 8
                 let size = NSSize(width: icon.size.width * scale, height: icon.size.height * scale)
