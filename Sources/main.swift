@@ -187,8 +187,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                     NSLog("POMODORO_SNAPSHOT popover=%d light=%d dark=%d appAppearance=%@",
                           okPopover ? 1 : 0, okLight ? 1 : 0, okDark ? 1 : 0,
                           NSApp.effectiveAppearance.name.rawValue)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        NSApp.terminate(nil)
+
+                    if env["POMODORO_SNAPSHOT_TWICE"] != nil, let view = view {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                            self.capture(view, to: prefix + "-b-popover.png", background: canvas)
+                            NSLog("POMODORO_SNAPSHOT second frame written")
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                NSApp.terminate(nil)
+                            }
+                        }
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            NSApp.terminate(nil)
+                        }
                     }
                 }
             }
