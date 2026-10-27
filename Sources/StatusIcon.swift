@@ -1,19 +1,9 @@
 import AppKit
 
-/// 菜单栏图标：使用打包在 Resources 里的像素图（模板渲染，跟随深浅色与高亮反色）。
-/// 找不到资源时退回代码里画的 PixelIcon。
+/// 菜单栏图标入口：黑白模板图，跟随菜单栏深浅色与高亮自动反色。
 enum StatusIcon {
-
-    /// 计时状态：8-bit 麦金塔
-    static let mac: NSImage = bundled("menubar-mac") ?? PixelIcon.mac
-
+    /// 计时状态：经典麦金塔
+    static let mac: NSImage = StatusGlyph.mac
     /// 休息状态：双手叉腰的人形
-    static let person: NSImage = bundled("menubar-person") ?? PixelIcon.coffee
-
-    private static func bundled(_ name: String) -> NSImage? {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "png"),
-              let image = NSImage(contentsOf: url) else { return nil }
-        image.isTemplate = true
-        return image
-    }
+    static let person: NSImage = StatusGlyph.person
 }

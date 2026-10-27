@@ -266,7 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
 
         if let prefix = env["POMODORO_DUMP_ICONS"] {
-            let icons: [(String, NSImage)] = [("mac", PixelIcon.mac), ("coffee", PixelIcon.coffee)]
+            let icons: [(String, NSImage)] = [("mac", StatusGlyph.mac), ("person", StatusGlyph.person)]
             for (name, icon) in icons {
                 let scale: CGFloat = 8
                 let size = NSSize(width: icon.size.width * scale, height: icon.size.height * scale)
