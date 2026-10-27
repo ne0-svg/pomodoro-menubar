@@ -42,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
         let textWidth = ceil(NSAttributedString(string: "888:88", attributes: [.font: font]).size().width)
         let timerIconWidth = ceil(StatusIcon.mac.size.width)
-        let coffeeIconWidth = ceil(StatusIcon.person.size.width)
+        let coffeeIconWidth = ceil(StatusIcon.coffee.size.width)
         // 两种状态都是「图标 + 时间」，取更宽的一档
         return max(timerIconWidth, coffeeIconWidth) + textWidth + 20
     }
@@ -59,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             let font = NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular)
             button.attributedTitle = NSAttributedString(string: " " + timeText, attributes: [.font: font])
         }
-        let icon = isRest ? StatusIcon.person : StatusIcon.mac
+        let icon = isRest ? StatusIcon.coffee : StatusIcon.mac
         if button.image !== icon {
             button.image = icon
         }
@@ -266,7 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
 
         if let prefix = env["POMODORO_DUMP_ICONS"] {
-            let icons: [(String, NSImage)] = [("mac", StatusGlyph.mac), ("person", StatusGlyph.person)]
+            let icons: [(String, NSImage)] = [("mac", PixelIcon.mac), ("coffee", PixelIcon.coffee)]
             for (name, icon) in icons {
                 let scale: CGFloat = 8
                 let size = NSSize(width: icon.size.width * scale, height: icon.size.height * scale)
