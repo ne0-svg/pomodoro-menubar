@@ -13,6 +13,29 @@ struct PopoverView: View {
 
     @FocusState private var focusedField: Field?
     @Environment(\.colorScheme) private var colorScheme
+
+    /// 调试用：POMODORO_FONT=1..5 切换时间字体
+    private static let fontVariant = ProcessInfo.processInfo.environment["POMODORO_FONT"] ?? "1"
+
+    private var timeFont: Font {
+        switch Self.fontVariant {
+        case "2": return .system(size: 34, weight: .light, design: .monospaced)
+        case "3": return .system(size: 36, weight: .light, design: .serif)
+        case "4": return .custom("AvenirNext-UltraLight", size: 38)
+        case "5": return .custom("DINAlternate-Bold", size: 32)
+        default:  return .system(size: 36, weight: .light, design: .rounded)
+        }
+    }
+
+    private var fractionFont: Font {
+        switch Self.fontVariant {
+        case "2": return .system(size: 14, weight: .light, design: .monospaced)
+        case "3": return .system(size: 15, weight: .light, design: .serif)
+        case "4": return .custom("AvenirNext-UltraLight", size: 16)
+        case "5": return .custom("DINAlternate-Bold", size: 13)
+        default:  return .system(size: 15, weight: .light, design: .rounded)
+        }
+    }
     /// 表盘 hover 状态（用 ObservableObject 而不是 @State：swiftc 直接编译时 SwiftUI 宏插件不可用）
     private final class HoverState: ObservableObject {
         @Published var isHovering = false
@@ -142,7 +165,9 @@ struct PopoverView: View {
             Circle()
                 .fill(Color(nsColor: .textBackgroundColor))
 
-            DialLiquid()
+            if ProcessInfo.processInfo.environment["POMODORO_NO_LIQUID"] == nil {
+                DialLiquid()
+            }
 
             Circle()
                 .stroke(Color.primary.opacity(hover.isHovering ? 0.14 : 0.09), lineWidth: 10)
@@ -159,11 +184,11 @@ struct PopoverView: View {
             VStack(spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 1) {
                     Text(engine.timeText)
-                        .font(.system(size: 36, weight: .light, design: .rounded))
+                        .font(timeFont)
                         .monospacedDigit()
                         .fixedSize()
                     Text(".\(engine.fractionText)")
-                        .font(.system(size: 15, weight: .light, design: .rounded))
+                        .font(fractionFont)
                         .monospacedDigit()
                         .opacity(0.55)
                         .fixedSize()
